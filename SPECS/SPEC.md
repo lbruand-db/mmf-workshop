@@ -111,7 +111,19 @@ Give participants the brief as copy-paste text, so every room gets the same Skil
 | 3:00–3:20 | **Lab 6 (optional) / G3 demo — Hierarchical reconciliation** and **MMF MLOps** (scheduled retrain/score, UC models, monitoring) | Demo (+ hands-on for fast finishers) |
 | 3:20–3:30 | Wrap-up: mapping to the customer's data, next steps, Q&A | Discussion |
 
-### 6.2 Lab specification template
+### 6.2 Lab independence principle
+
+**Every lab is self-contained.** A participant can jump to any lab without having completed the preceding ones. This is a hard design constraint, not a nice-to-have: it lets latecomers start mid-session, lets the instructor skip or reorder modules, and lets the Vocareum course offer each module as an independent unit.
+
+How this works in practice:
+- Each lab's `catchup.py` is also its **bootstrap**: it materialises all prerequisite tables and assets into the participant's schema. When entering Lab N cold, the participant (or the Vocareum harness) runs Lab N's `catchup.py` first. The notebook is fast (minutes, not the full pipeline) because it writes pre-computed reference results, not re-runs the forecast.
+- `checkpoint.py` validates only that lab's outputs — it never checks outputs from earlier labs.
+- `prompts.md` includes the Genie Code prompts needed for that lab alone; it does not reference prior conversations.
+- Shared read-only tables (`{catalog}.m5.*`) and reference results (`{catalog}.m5_reference.*`) are always available and do not depend on any lab having run.
+
+In short: `catchup.py` is both the fallback for a lab you did and the entry point for a lab you skipped. Every lab starts from a known state.
+
+### 6.3 Lab specification template (per-lab directory)
 
 Every lab directory (`labs/NN-name/`) contains:
 
@@ -121,7 +133,7 @@ Every lab directory (`labs/NN-name/`) contains:
 - `catchup.py`: **non-agent fallback** that produces the lab's outputs deterministically by calling `mmf_sa` directly (derived from `examples/m5/*`). A participant who falls behind, or whose agent goes off-track, runs it and continues with the next lab.
 - `instructor_notes.md`: talking points, timings, common failure modes.
 
-### 6.3 Per-lab expected outputs
+### 6.4 Per-lab expected outputs
 
 | Lab | Skill | Key gates participants answer | Outputs in `{catalog}.{user_schema}` |
 |-----|-------|-------------------------------|--------------------------------------|
@@ -140,7 +152,7 @@ Every lab directory (`labs/NN-name/`) contains:
 
 Measure the actual runtime in the dry run (§10) and record it in `instructor_notes.md`.
 
-### 6.4 "Genie on forecasts" segment (Lab 5)
+### 6.5 "Genie on forecasts" segment (Lab 5)
 After Skill 5, participants ask natural-language questions of the output tables, either in Genie Code or in a pre-built Genie space over `m5_best_models` / `m5_scoring_output`. Examples: "Which category has the worst WAPE?" and "Which model wins most often for intermittent series?" This shows the planner-facing value. Reuse the pattern in `examples/fresh_retail_net/04_genie_views_setup.ipynb`.
 
 ## 7. Environment and provisioning
