@@ -54,9 +54,10 @@ WITH avg_metrics AS (
     SELECT
         unique_id,
         model,
-        AVG({metric}) AS avg_metric,
+        AVG(metric_value) AS avg_metric,
         COUNT(*) AS n_windows
     FROM {eval_table}
+    WHERE metric_name = '{metric}'
     GROUP BY unique_id, model
 ),
 ranked AS (
@@ -78,7 +79,7 @@ ranked AS (
 SELECT
     unique_id,
     model AS best_model,
-    avg_metric AS best_{metric},
+    avg_metric AS best_metric,
     n_windows
 FROM ranked
 WHERE rank = 1
@@ -106,7 +107,7 @@ SELECT
     b.best_model AS model,
     COUNT(*) AS wins_count,
     ROUND(COUNT(*) * 100.0 / t.total_series, 1) AS wins_pct,
-    ROUND(AVG(b.best_{metric}), 4) AS avg_{metric}
+    ROUND(AVG(b.best_metric), 4) AS avg_metric
 FROM best b
 CROSS JOIN total t
 GROUP BY b.best_model, t.total_series
@@ -126,9 +127,9 @@ overall = spark.sql(f"""
 SELECT
     COUNT(*) AS total_series,
     COUNT(DISTINCT best_model) AS n_models,
-    ROUND(AVG(best_{metric}), 4) AS overall_avg_{metric},
-    ROUND(PERCENTILE(best_{metric}, 0.5), 4) AS median_{metric},
-    ROUND(MAX(best_{metric}), 4) AS worst_{metric}
+    ROUND(AVG(best_metric), 4) AS overall_avg_metric,
+    ROUND(PERCENTILE(best_metric, 0.5), 4) AS median_metric,
+    ROUND(MAX(best_metric), 4) AS worst_metric
 FROM {catalog}.{user_schema}.m5_best_models
 """)
 display(overall)
@@ -143,7 +144,7 @@ display(overall)
 display(spark.sql(f"""
 SELECT *
 FROM {catalog}.{user_schema}.m5_best_models
-ORDER BY best_{metric} DESC
+ORDER BY best_metric DESC
 LIMIT 10
 """))
 
