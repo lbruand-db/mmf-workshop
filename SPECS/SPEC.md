@@ -148,12 +148,80 @@ Every lab directory (`labs/NN-name/`) contains:
 **Default model set for the timed workshop.** It must finish within ~25 min on 1,000 series:
 - Local: `StatsForecastBaselineSeasonalNaive`, `StatsForecastAutoETS`, `StatsForecastAutoTheta`, `StatsForecastCrostonOptimized`, `StatsForecastTSB`
 - Global ML: MLForecast LightGBM
-- Foundation: Chronos-2 or TimesFM 2.5, **only if GPU or serverless GPU is confirmed**. Otherwise run it as an instructor demo on pre-computed results.
+- Foundation: Chronos-2 or TimesFM 2.5 (see §6.6 for the fast-iteration strategy)
 
 Measure the actual runtime in the dry run (§10) and record it in `instructor_notes.md`.
 
 ### 6.5 "Genie on forecasts" segment (Lab 5)
+
 After Skill 5, participants ask natural-language questions of the output tables, either in Genie Code or in a pre-built Genie space over `m5_best_models` / `m5_scoring_output`. Examples: "Which category has the worst WAPE?" and "Which model wins most often for intermittent series?" This shows the planner-facing value. Reuse the pattern in `examples/fresh_retail_net/04_genie_views_setup.ipynb`.
+
+### 6.6 Foundation models and fast iterations
+
+Foundation models (Chronos-2, TimesFM 2.5, Moirai) are a key differentiator of MMF — participants must experience them, not just hear about them. At the same time, GPU runs are slow (cluster startup + inference), and a 30-minute wait kills the learning loop. The strategy below keeps every participant-facing iteration under ~10 minutes while still delivering real foundation model results.
+
+#### Design: split CPU and GPU into parallel tracks
+
+MMF Skill 4 already generates **separate jobs per model class** (one notebook for local, one for global ML, one for GPU models). We exploit this:
+
+```
+Lab 4 timeline
+──────────────────────────────────────────────────────────────
+  Participant kicks off Skill 4
+  │
+  ├─▶ Job A: local + global ML on serverless CPU (100 or 1,000 series)
+  │   └─ finishes in ~5–8 min → participant moves to Lab 5 immediately
+  │
+  ├─▶ Job B: foundation model on GPU (100 series only)
+  │   └─ finishes in ~10–15 min → results appear in evaluation table
+  │       while participant is already exploring Lab 5
+  │
+  └─▶ Reference results (pre-loaded)
+      └─ foundation model results on 1,000 series from the dry run,
+         already in {catalog}.m5_reference — always available for
+         comparison, even if Job B hasn't finished or was skipped
+──────────────────────────────────────────────────────────────
+```
+
+Participants don't wait for GPU — they continue with Lab 5 on the CPU results and see the foundation model rows appear in their tables as Job B completes.
+
+#### Levers to keep iteration time short
+
+| Lever | Effect | Trade-off |
+|-------|--------|-----------|
+| **100-series dataset for GPU jobs** | Cuts foundation model runtime from hours to ~10–15 min on a single T4 | Fewer series to compare; mitigated by reference results on 1,000 series |
+| **Reduce backtest windows** | `backtest_length=28`, `stride=28` → 1 window instead of ~9 (vs default 90/7). Or `backtest_length=56`, `stride=28` → 2 windows | Fewer backtest points for model selection; acceptable for a learning exercise |
+| **Single foundation model** | Run only Chronos-2 **or** TimesFM, not both | Participants see the concept; instructor demos the other on reference results |
+| **Pre-warmed GPU cluster** | Start the `g4dn.xlarge` cluster during Lab 2/3, before Lab 4 needs it. Instructor triggers this, or `lab_setup.sh` does it automatically | Costs ~$1/h idle; saves 5–7 min cluster startup |
+| **Pre-computed reference results** | Full foundation model backtest on 1,000 series (all models) pre-loaded in `{catalog}.m5_reference` | Always available for Lab 5 exploration and "Genie on forecasts", regardless of what the participant ran |
+| **Serverless GPU (AI Runtime)** | If available: no cluster startup, pay-per-use, ~0 wait. This is the ideal path | Region-dependent (preview); confirm in dry run |
+
+#### Recommended configurations by delivery
+
+| Delivery | Dataset for GPU | Backtest config | Foundation model | Cluster strategy |
+|----------|-----------------|-----------------|------------------|------------------|
+| **G1 (instructor-led)** | 100 series | `backtest_length=56, stride=28` (2 windows) | Chronos-2 on T4 (`g4dn.xlarge`) | Pre-warm during Lab 2; or serverless GPU if available |
+| **G2 (Vocareum self-paced)** | 100 series | `backtest_length=28, stride=28` (1 window) | Chronos-2 on T4, time-budgeted | Auto-start in `lab_setup.sh`; auto-terminate 15 min idle |
+| **G2 no-GPU fallback** | N/A | N/A | Skip — use reference results only | No GPU cluster; foundation explored via pre-loaded tables |
+
+#### What participants see in Lab 5
+
+Regardless of which path ran, the evaluation and best-model tables contain results from **all model classes**:
+- Rows the participant produced (local, global ML, and possibly foundation) carry their `run_id`.
+- Pre-loaded reference rows (foundation on 1,000 series) carry `run_id = 'reference'`.
+- Lab 5's `prompts.md` includes questions that compare statistical vs foundation models ("For which series does Chronos beat AutoETS?"), so participants always engage with foundation model results even if they didn't run them.
+
+#### Runtime targets (to validate in dry run)
+
+| Model class | Dataset | Backtest | Target runtime | Compute |
+|-------------|---------|----------|----------------|---------|
+| Local (5 models) | 1,000 series | 90/7 | < 5 min | Serverless CPU |
+| Global ML (LightGBM) | 1,000 series | 90/7 | < 3 min | Serverless CPU |
+| Chronos-2 | 100 series | 56/28 | < 12 min | `g4dn.xlarge` (T4) |
+| Chronos-2 | 100 series | 28/28 | < 8 min | `g4dn.xlarge` (T4) |
+| TimesFM 2.5 | 100 series | 56/28 | < 10 min | `g4dn.xlarge` (T4) |
+
+Record actual runtimes in the dry run (§10) and adjust the backtest config if any target is missed.
 
 ## 7. Environment and provisioning
 
