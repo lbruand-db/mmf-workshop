@@ -235,8 +235,8 @@ Record actual runtimes in the dry run (§10) and adjust the backtest config if a
 - Pre-computed **reference results** in `{catalog}.m5_reference` (full output of Labs 1–6 on `daily_train_1000`, plus a full-M5 run). Used for demos, catch-up and when GPU is unavailable.
 
 ### 7.2 Setup automation (`setup/`)
-- `setup/00_admin_setup.py`: creates the catalog and schemas, grants, the data load (`data_preparation_m5.py`, extended with static features and hierarchy membership), and reference results.
-- `setup/01_install_skills.sh`: for each user in `setup/participants.csv`, runs `databricks workspace import-dir` of the skill bundle and `import` of the templated instructions file. Use the CLI with an explicit `--profile`, idempotent with `--overwrite`.
+- `setup/workspace_setup.py` (Vocareum `workspace_setup`): creates the shared catalog and schema, stages the pinned skill bundle in a volume, runs the data load (`00_data_load.py`) and reference results (`01_precompute_foundation.py`), and grants learners read-only access.
+- `setup/user_setup.py` (Vocareum `user_setup`): for each user (one, or a comma-separated list for G1), imports the skill bundle and the templated instructions file into their home folder through the Workspace API. Idempotent (`overwrite`).
 - `setup/02_validate_env.py`: smoke test as a participant. Checks the skill is visible, the data is readable, the schema is writable, and Lab 1 `catchup.py` runs end-to-end on `daily_train_100`.
 - Optionally package setup as a **Databricks Asset Bundle** (`databricks.yml`), so the same deploy works for the customer workspace and the Vocareum template workspace.
 
@@ -264,7 +264,7 @@ Self-paced conversion of §6. Target ~4 h of learner time:
 
 ### 8.3 Lab environment
 - One Databricks workspace (or user + schema) per learner, provisioned by Vocareum from a **template** built with the same `setup/` automation (bundle-deployable).
-- On learner start, a Vocareum hook runs `setup/01_install_skills.sh` for that learner, plus schema creation. The read-only M5 data and reference results are shared and pre-loaded.
+- On learner start, Vocareum's `user_setup` runs `setup/user_setup.py` for that learner. Outputs go to the learner's managed catalog, so no schema creation is needed. The read-only M5 data and reference results are shared and pre-loaded.
 - Session limits: time-boxed lab sessions, with idle compute auto-terminated. Model sets are restricted via cluster policies, or serverless budget policies, to control cost.
 
 ### 8.4 Assessment

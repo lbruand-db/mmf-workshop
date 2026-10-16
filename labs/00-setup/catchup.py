@@ -70,7 +70,7 @@ try:
     else:
         print(f"  WARN  Skill file not found at {skill_path}")
         print(f"        Open Genie Code and ask: 'What skills do you have access to?'")
-        print(f"        If the MMF skill is not listed, re-run setup/01_install_skills")
+        print(f"        If the MMF skill is not listed, ask the instructor to re-run setup/user_setup")
 except Exception as e:
     print(f"  SKIP  Could not check skill path: {e}")
     print(f"        Manually verify in Genie Code: 'What skills do you have access to?'")

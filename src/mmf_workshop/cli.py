@@ -12,12 +12,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 NOTEBOOK_DIRS = ["setup", "labs"]
 NOTEBOOK_HEADER = "# Databricks notebook source"
 DIST_DIR = REPO_ROOT / "dist"
-DBC_NAME = "mmf-workshop.dbc"
+# One archive per directory: learners only get labs/; setup/ is run by admins
+# (Vocareum workspace_setup / user_setup).
+ARCHIVES = {d: f"mmf-workshop-{d}.dbc" for d in NOTEBOOK_DIRS}
 
 
-def find_notebooks() -> list[Path]:
+def find_notebooks(dirs: list[str] = NOTEBOOK_DIRS) -> list[Path]:
     notebooks = []
-    for d in NOTEBOOK_DIRS:
+    for d in dirs:
         src = REPO_ROOT / d
         if not src.exists():
             print(f"WARNING: {src} not found, skipping", file=sys.stderr)
@@ -33,9 +35,18 @@ def validate_notebook(path: Path) -> bool:
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    notebooks = find_notebooks()
+    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    for d, name in ARCHIVES.items():
+        rc = build_archive(d, DIST_DIR / name)
+        if rc:
+            return rc
+    return 0
+
+
+def build_archive(d: str, dbc_path: Path) -> int:
+    notebooks = find_notebooks([d])
     if not notebooks:
-        print("ERROR: no notebooks found in setup/ or labs/", file=sys.stderr)
+        print(f"ERROR: no notebooks found in {d}/", file=sys.stderr)
         return 1
 
     valid, invalid = [], []
@@ -51,31 +62,25 @@ def cmd_build(args: argparse.Namespace) -> int:
             print(f"  {p.relative_to(REPO_ROOT)}", file=sys.stderr)
 
     if not valid:
-        print("ERROR: no valid Databricks notebooks found", file=sys.stderr)
+        print(f"ERROR: no valid Databricks notebooks found in {d}/", file=sys.stderr)
         return 1
 
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    dbc_path = DIST_DIR / DBC_NAME
-
+    # Paths are relative to the directory so relative %run / notebook.run
+    # references (e.g. ../_includes/config) resolve after import.
     with zipfile.ZipFile(dbc_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for nb in valid:
-            arcname = str(nb.relative_to(REPO_ROOT))
+            arcname = str(nb.relative_to(REPO_ROOT / d))
             zf.write(nb, arcname)
             print(f"  + {arcname}")
 
-    print(f"\nBuilt {dbc_path} ({len(valid)} notebooks, {dbc_path.stat().st_size} bytes)")
+    print(f"Built {dbc_path} ({len(valid)} notebooks, {dbc_path.stat().st_size} bytes)\n")
     return 0
 
 
 def cmd_install(args: argparse.Namespace) -> int:
-    dbc_path = DIST_DIR / DBC_NAME
-    if not dbc_path.exists():
-        print(f"ERROR: {dbc_path} not found — run 'mmf-workshop build' first", file=sys.stderr)
-        return 1
-
     target = f"/Users/{args.email}/mmf-workshop"
 
-    print(f"Importing {dbc_path.name} -> {target}")
+    print(f"Importing notebooks -> {target}")
     for nb in find_notebooks():
         rel = nb.relative_to(REPO_ROOT)
         ws_path = f"{target}/{rel}".removesuffix(".py")
@@ -107,9 +112,9 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("build", help="Package notebooks into dist/mmf-workshop.dbc")
+    sub.add_parser("build", help="Package labs/ and setup/ into dist/mmf-workshop-{labs,setup}.dbc")
 
-    install_p = sub.add_parser("install", help="Import DBC into a Databricks workspace")
+    install_p = sub.add_parser("install", help="Import notebook sources into a Databricks workspace")
     install_p.add_argument("--email", required=True, help="Target user email")
     install_p.add_argument("--profile", default=None, help="Databricks CLI profile")
 

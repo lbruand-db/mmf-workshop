@@ -21,8 +21,10 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   ├── SPEC.md              # Workshop specification
 │   ├── VOCAREUM.md           # Vocareum environment research
 │   └── NOTES.md              # Working notes and test results
-├── setup/
-│   ├── 00_data_load.py       # Load M5 data into Unity Catalog
+├── setup/                    # Admin-only — never shipped to learners
+│   ├── workspace_setup.py    # Once per workspace: data, skill bundle staging, grants
+│   ├── user_setup.py         # Once per learner: install MMF skill for Genie Code
+│   ├── 00_data_load.py       # Load M5 data into Unity Catalog (called by workspace_setup)
 │   └── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
 └── labs/
     ├── _includes/
@@ -61,25 +63,32 @@ Every lab can be entered cold. Each lab directory contains:
 
 ## Setup (instructor / admin)
 
-### 1. Load M5 data
+Both setup notebooks run as a workspace admin and are safe to re-run. On Vocareum they are the `workspace_setup` and `user_setup` entries of the course `.cfg`, called with `host` / `token` (and `username`). For an instructor-led workshop, run them by hand.
 
-Run `setup/00_data_load.py` on serverless compute. This creates three tables in `mmf.m5`:
+### 1. Workspace setup — `setup/workspace_setup.py`
 
-| Table | Description |
-|-------|-------------|
-| `daily_train_100` | 100 sampled series (seed=7) |
-| `daily_train_1000` | 1,000 sampled series (seed=7) |
-| `m5_static_features` | Item/store metadata |
+Run once per workspace. It:
 
-### 2. Pre-compute foundation results
+1. Creates `mmf.m5` and the `mmf.m5.assets` volume.
+2. Stages the MMF skill bundle and agent instructions from the upstream repo, pinned by the `mmf_ref` widget, in `/Volumes/mmf/m5/assets/skills/`.
+3. Runs `00_data_load` and `01_precompute_foundation`, skipping either if its tables already exist (`force_reload=true` to redo):
 
-Run `setup/01_precompute_foundation.py` on serverless CPU. Creates `mmf.m5.reference_evaluation_output` with Chronos-Bolt-Small results (200 rows: 100 series x 2 backtest windows).
+   | Table | Description |
+   |-------|-------------|
+   | `daily_train_100` | 100 sampled series (seed=7) |
+   | `daily_train_1000` | 1,000 sampled series (seed=7) |
+   | `m5_static_features` | Item/store metadata |
+   | `reference_evaluation_output` | Chronos-Bolt-Small results on CPU (100 series × 2 backtest windows) — needed because Vocareum has no GPU. Lab 5 merges them with participant results |
 
-This step is needed because the Vocareum workspace has no GPU access. Lab 5 automatically merges these reference results with participant CPU model outputs.
+4. Grants `learner_group` (default `account users`) read-only access to `mmf.m5`. For an instructor-led workshop set `allow_user_schemas=true`, so participants can create their `mmf.{user}` schema.
 
-### 3. Install MMF skill
+### 2. User setup — `setup/user_setup.py`
 
-Upload the MMF skill bundle to each participant's `/Users/{email}/.assistant/skills/` folder.
+Run once per learner, with `username` set to their email (comma-separated for several). It installs the staged bundle into `/Users/{email}/.assistant/skills/`, and `assistant_instructions.md` — with its `### User Context` filled in — as `/Users/{email}/.assistant_instructions.md`.
+
+### Packaging
+
+`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.dbc` (learner content) and `mmf-workshop-setup.dbc` (admin setup). Learners never receive the setup notebooks.
 
 ## Running the labs
 
