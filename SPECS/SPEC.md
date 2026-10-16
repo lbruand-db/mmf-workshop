@@ -130,7 +130,7 @@ Every lab directory (`labs/NN-name/`) contains:
 - `README.md`: objective, duration, preconditions (tables that must exist), steps, and expected outputs.
 - `prompts.md`: **golden-path Genie Code prompts**, plus the expected answer at each STOP gate (e.g. gate `1.0a` → `{catalog}.{user_schema}`; `1.5a` → no dynamic regressors). Participants copy these when unsure. This keeps an LLM-driven lab reproducible.
 - `checkpoint.py` (Databricks notebook): **validates** the lab's outputs (tables exist, row counts, schema, at least N models evaluated) and prints PASS/FAIL. The same check is the Vocareum auto-grader (§8.4).
-- `catchup.py`: **non-agent fallback** that produces the lab's outputs deterministically by calling `mmf_sa` directly (derived from `examples/m5/*`). A participant who falls behind, or whose agent goes off-track, runs it and continues with the next lab.
+- `catchup.py`: **non-agent fallback** that produces the lab's outputs deterministically in seconds, by copying pre-computed reference results from `{catalog}.m5_reference`. A participant who falls behind, or whose agent goes off-track, runs it and continues with the next lab. Labs with a long-running step also have a reference-solution notebook (e.g. Lab 4's `run_cpu.py`, which calls `mmf_sa` directly, derived from `examples/m5/*`); `setup/workspace_setup` runs it once to produce the reference results.
 - `instructor_notes.md`: talking points, timings, common failure modes.
 
 ### 6.4 Per-lab expected outputs
@@ -160,7 +160,9 @@ After Skill 5, participants ask natural-language questions of the output tables,
 
 Foundation models (Chronos-2, TimesFM 2.5, Moirai) are a key differentiator of MMF — participants must experience them, not just hear about them. At the same time, GPU runs are slow (cluster startup + inference), and a 30-minute wait kills the learning loop. The strategy below keeps every participant-facing iteration under ~10 minutes while still delivering real foundation model results.
 
-#### Design: split CPU and GPU into parallel tracks
+**GPU is G1-only.** The Vocareum lab guidelines forbid GPUs (expensive, and taken from customers), and the Vocareum test workspace has neither GPU EC2 quota nor serverless GPU anyway (`NOTES.md`, 2026-10-15). In G2, learners never run foundation models: they explore pre-computed results, which `setup/workspace_setup` produces on CPU (`01_precompute_foundation.py`). The GPU track below applies to an instructor-led workshop on a workspace with GPUs.
+
+#### Design: split CPU and GPU into parallel tracks (G1)
 
 MMF Skill 4 already generates **separate jobs per model class** (one notebook for local, one for global ML, one for GPU models). We exploit this:
 
@@ -177,9 +179,9 @@ Lab 4 timeline
   │       while participant is already exploring Lab 5
   │
   └─▶ Reference results (pre-loaded)
-      └─ foundation model results on 1,000 series from the dry run,
-         already in {catalog}.m5_reference — always available for
-         comparison, even if Job B hasn't finished or was skipped
+      └─ foundation model results pre-computed at setup, already in
+         {catalog}.m5 — always available for comparison, even if
+         Job B hasn't finished or was skipped (the only path in G2)
 ──────────────────────────────────────────────────────────────
 ```
 
@@ -192,23 +194,22 @@ Participants don't wait for GPU — they continue with Lab 5 on the CPU results 
 | **100-series dataset for GPU jobs** | Cuts foundation model runtime from hours to ~10–15 min on a single T4 | Fewer series to compare; mitigated by reference results on 1,000 series |
 | **Reduce backtest windows** | `backtest_length=28`, `stride=28` → 1 window instead of ~9 (vs default 90/7). Or `backtest_length=56`, `stride=28` → 2 windows | Fewer backtest points for model selection; acceptable for a learning exercise |
 | **Single foundation model** | Run only Chronos-2 **or** TimesFM, not both | Participants see the concept; instructor demos the other on reference results |
-| **Pre-warmed GPU cluster** | Start the `g4dn.xlarge` cluster during Lab 2/3, before Lab 4 needs it. Instructor triggers this, or `lab_setup.sh` does it automatically | Costs ~$1/h idle; saves 5–7 min cluster startup |
-| **Pre-computed reference results** | Full foundation model backtest on 1,000 series (all models) pre-loaded in `{catalog}.m5_reference` | Always available for Lab 5 exploration and "Genie on forecasts", regardless of what the participant ran |
-| **Serverless GPU (AI Runtime)** | If available: no cluster startup, pay-per-use, ~0 wait. This is the ideal path | Region-dependent (preview); confirm in dry run |
+| **Pre-warmed GPU cluster** (G1) | The instructor starts the `g4dn.xlarge` cluster during Lab 2/3, before Lab 4 needs it | Costs ~$1/h idle; saves 5–7 min cluster startup |
+| **Pre-computed reference results** | Foundation model backtest pre-loaded by `workspace_setup` — today Chronos-Bolt-Small on 100 series, 2 windows, computed on CPU, in `{catalog}.m5.reference_evaluation_output`. Target: more models and series | Always available for Lab 5 exploration and "Genie on forecasts", regardless of what the participant ran. The only foundation path in G2 |
+| **Serverless GPU (AI Runtime)** (G1) | If available: no cluster startup, pay-per-use, ~0 wait. The ideal G1 path | Region-dependent (preview); confirm in dry run. Not for G2 |
 
 #### Recommended configurations by delivery
 
 | Delivery | Dataset for GPU | Backtest config | Foundation model | Cluster strategy |
 |----------|-----------------|-----------------|------------------|------------------|
 | **G1 (instructor-led)** | 100 series | `backtest_length=56, stride=28` (2 windows) | Chronos-2 on T4 (`g4dn.xlarge`) | Pre-warm during Lab 2; or serverless GPU if available |
-| **G2 (Vocareum self-paced)** | 100 series | `backtest_length=28, stride=28` (1 window) | Chronos-2 on T4, time-budgeted | Auto-start in `lab_setup.sh`; auto-terminate 15 min idle |
-| **G2 no-GPU fallback** | N/A | N/A | Skip — use reference results only | No GPU cluster; foundation explored via pre-loaded tables |
+| **G2 (Vocareum self-paced)** | N/A — no GPU | N/A | Reference results only (pre-computed on CPU at workspace setup), merged in Lab 5 | No GPU cluster |
 
 #### What participants see in Lab 5
 
 Regardless of which path ran, the evaluation and best-model tables contain results from **all model classes**:
 - Rows the participant produced (local, global ML, and possibly foundation) carry their `run_id`.
-- Pre-loaded reference rows (foundation on 1,000 series) carry `run_id = 'reference'`.
+- Pre-loaded reference rows (foundation, merged by Lab 5's `catchup.py`) carry the reference run's `run_id`. *To fix:* they use 2 backtest windows (56/28) while Lab 4 uses ~9 (90/7), so per-series averages aren't strictly comparable; align the windows or compare on common windows only.
 - Lab 5's `prompts.md` includes questions that compare statistical vs foundation models ("For which series does Chronos beat AutoETS?"), so participants always engage with foundation model results even if they didn't run them.
 
 #### Runtime targets (to validate in dry run)
@@ -227,28 +228,29 @@ Record actual runtimes in the dry run (§10) and adjust the backtest config if a
 
 ### 7.1 Shared requirements (both deliveries)
 - Unity Catalog workspace with **Genie Code enabled**, and serverless notebooks/jobs enabled.
-- Catalog `mmf_workshop` (name configurable) with a read-only `m5` schema and one writable schema per participant (`u_<shortname>`).
+- Catalog `mmf` (name configurable) with read-only `m5` (data, foundation reference results, `assets` volume) and `m5_reference` (Lab 4 reference results) schemas. Participant outputs: on Vocareum, schema `mmf` in the learner's managed catalog; elsewhere, one schema per participant (`mmf.{user}`). Resolved by `labs/_includes/config`.
 - MMF skill bundle and `.assistant_instructions.md` installed **per user** (Genie Code reads from the user folder; the dots and paths are significant). The `### User Context` block is filled with that user's workspace URL and email.
-- Python dependencies: `mmf_sa[local,global,foundation]` from the pinned git SHA. Pre-install on cluster policies / serverless environment where possible, to avoid a 30-person `%pip` storm.
+- Python dependencies: `mmf_sa` built from the pinned SHA into `/Volumes/mmf/m5/assets/wheels/` by `workspace_setup`, installed with `%pip install -r .../requirements-cpu.txt` (no GitHub at learner runtime). Its own dependencies come from PyPI at upstream's exact pins. Pins: `setup/VERSIONS.md`.
 - Spark configs for classic clusters: `spark.sql.execution.arrow.enabled true`, `spark.sql.adaptive.enabled false`.
 - MMF Results Explorer app deployed once, with SQL warehouse resource `sql-warehouse`, and `SELECT` on participant schemas granted to its service principal.
-- Pre-computed **reference results** in `{catalog}.m5_reference` (full output of Labs 1–6 on `daily_train_1000`, plus a full-M5 run). Used for demos, catch-up and when GPU is unavailable.
+- Pre-computed **reference results**, produced by `workspace_setup`: Lab 4 CPU results in `{catalog}.m5_reference` (100 series) and foundation results in `{catalog}.m5.reference_evaluation_output`. Used for catch-up, demos, and as the only foundation path when there is no GPU. *Target:* outputs of every lab (incl. 2, 3, 6) and a full-M5 run for the G3 demo.
 
 ### 7.2 Setup automation (`setup/`)
-- `setup/workspace_setup.py` (Vocareum `workspace_setup`): creates the shared catalog and schema, stages the pinned skill bundle in a volume, runs the data load (`00_data_load.py`) and reference results (`01_precompute_foundation.py`), and grants learners read-only access.
+- `setup/workspace_setup.py` (Vocareum `workspace_setup`): creates the shared catalog and schemas, stages the pinned skill bundle and `mmf_sa` wheel in a volume, runs the data load (`00_data_load.py`), the foundation reference results (`01_precompute_foundation.py`) and the Lab 4 reference solution (`labs/04-execute/run_cpu.py` → `m5_reference`), and grants learners read-only access. Runs once per workspace (each Vocareum workspace has its own metastore).
 - `setup/user_setup.py` (Vocareum `user_setup`): for each user (one, or a comma-separated list for G1), imports the skill bundle and the templated instructions file into their home folder through the Workspace API. Idempotent (`overwrite`).
-- `setup/02_validate_env.py`: smoke test as a participant. Checks the skill is visible, the data is readable, the schema is writable, and Lab 1 `catchup.py` runs end-to-end on `daily_train_100`.
+- `setup/autograde.py` (Vocareum `autograde`): see §8.4.
+- `setup/02_validate_env.py` *(not built yet)*: smoke test as a participant. Checks the skill is visible, the data is readable, the schema is writable, and Lab 1 `catchup.py` runs end-to-end on `daily_train_100`.
 - Optionally package setup as a **Databricks Asset Bundle** (`databricks.yml`), so the same deploy works for the customer workspace and the Vocareum template workspace.
 
 ### 7.3 Compute strategy
 - **Default: serverless** for notebooks, profiling and MMF jobs. There's no cluster start-up wait and no quota planning per participant.
-- **GPU** (foundation/DL models): confirm availability and quota in the target workspace. If GPU isn't available, foundation and DL models become an instructor demo on reference results.
+- **GPU** (foundation/DL models), **G1 only**: confirm availability and quota in the target workspace. If GPU isn't available, foundation and DL models become an instructor demo on reference results. G2 never uses GPUs (§6.6).
 - Concurrency budget: N participants × (1 profiling run + up to 3 model-class jobs). Validate workspace job and serverless limits for N = expected headcount + 20%.
 
 ## 8. Deliverable G2 — Vocareum course (via the Vocareum Course Vendor)
 
 ### 8.1 Course structure
-Self-paced conversion of §6. Target ~4 h of learner time:
+Self-paced conversion of §6. Target ~4 h of learner time in total. A Vocareum session is 240 min, so either offer modules as separate parts (lab independence, §6.2, makes each module standalone) or allow at least two sessions in the time budget (at most 3× the session length):
 1. Module 1: MMF concepts (video/slides + quiz)
 2. Module 2: Genie Code and the MMF Agent (Lab 0)
 3. Module 3: Data prep and profiling (Labs 1–2)
@@ -263,9 +265,12 @@ Self-paced conversion of §6. Target ~4 h of learner time:
 - `catchup.py` is surfaced as an explicit "Reset / skip this lab" button or cell.
 
 ### 8.3 Lab environment
-- One Databricks workspace (or user + schema) per learner, provisioned by Vocareum from a **template** built with the same `setup/` automation (bundle-deployable).
-- On learner start, Vocareum's `user_setup` runs `setup/user_setup.py` for that learner. Outputs go to the learner's managed catalog, so no schema creation is needed. The read-only M5 data and reference results are shared and pre-loaded.
-- Session limits: time-boxed lab sessions, with idle compute auto-terminated. Model sets are restricted via cluster policies, or serverless budget policies, to control cost.
+See `VOCAREUM.md` for the platform facts and `vocareum/README.md` for the settings.
+- **Shared AWS workspaces** in the GenAI org, with the users-per-workspace limit set as high as product limits allow. Each workspace has its own metastore, so `setup/workspace_setup.py` (the `.cfg` `workspace_setup` entry) loads the shared data and reference results in each new workspace.
+- Learners are workspace users, not admins. Each has a Vocareum **managed catalog**, where all their outputs go (schema `mmf`); Vocareum drops it at user cleanup. Learner notebooks never create catalogs.
+- On learner start, `setup/user_setup.py` (the `user_setup` entry) installs the MMF skill for that learner.
+- Compute: serverless only — no GPU, no provisioned-throughput serving (§6.6). Learner notebooks don't download code from GitHub (§7.1).
+- Session: 240 min, time budget at most 3× that, timer and README on. **End Lab Behavior = terminate**, so `lab_end` runs `vocareum/scripts/python/mmf_lab_end.py` to delete the learner's jobs, clusters and experiments (Skills 3 and 4 create them outside the managed catalog). A cluster policy restricting learner clusters is recommended on top.
 
 ### 8.4 Assessment
 - Each lab's `checkpoint.py` exits with machine-readable JSON (`status` PASS/FAIL plus per-check details). `setup/autograde.py`, the Vocareum `autograde` entry, runs them for the submitting learner and writes the `rubric` / `score` / `feedback` table Vocareum reads.
@@ -273,9 +278,9 @@ Self-paced conversion of §6. Target ~4 h of learner time:
 - Completion requires Labs 0–5 PASS.
 
 ### 8.5 Packaging for the Course Vendor
-- Deliverables: lab notebooks (`.py` source format), learner instructions (Markdown), environment template/bundle, grader scripts, slide deck, instructor guide, and a pinned `VERSIONS.md`.
+- Deliverables: the course `.cfg` and two notebook archives built by `uv run mmf-workshop build` (`mmf-workshop-labs.zip` for learners, `mmf-workshop-setup.zip` for admin hooks), learner instructions (`vocareum/docs/README.md`), the `lab_end` reaper, grader (`setup/autograde.py`), slide deck, instructor guide, and `setup/VERSIONS.md`.
 - A content update process for when upstream MMF or the skills change: re-pin the SHA, re-run `02_validate_env.py`, and re-record any videos affected by skill/gate changes.
-- *Open:* exact Vocareum Course Vendor packaging format, workspace provisioning model (per-learner workspace vs shared workspace with per-learner schema), and the Genie Code availability on Vocareum-provisioned workspaces. See §12.
+- *Decided:* packaging is a `.cfg` plus archives in `/voc/private/courseware` and a README in `/voc/docs`; provisioning is shared workspaces with per-user managed catalogs. *Open:* Genie Code availability on Vocareum-provisioned workspaces, and what the Course Vendor app expects beyond this. See §12 and `VOCAREUM.md §9`.
 
 ## 9. Deliverable G3 — MMF MLOps extra
 
@@ -311,18 +316,20 @@ Scope for G1 if time is short: Labs 0–5 are must-have; Lab 6 and G3 are demo-o
 | Risk | Mitigation |
 |------|------------|
 | Agent non-determinism (Genie Code skips or batches gates, generates different code) | Golden-path `prompts.md`; `checkpoint.py` after each lab; `catchup.py` fallback; pinned skill version |
-| Genie Code not enabled or skills not picked up (path-sensitive install) | `01_install_skills.sh` + `02_validate_env.py`; verify a day before; fallback: run the `catchup.py` notebooks with the instructor narrating the agent flow |
-| Long job runtimes / queueing with many concurrent participants | Serverless default; 1,000 (or 100) series; CPU model set; reference results for demos |
-| No GPU quota | Foundation/DL models as demo on pre-computed results |
+| Genie Code not enabled or skills not picked up (path-sensitive install) | `setup/user_setup.py` + `02_validate_env.py`; verify a day before; fallback: run the `catchup.py` notebooks with the instructor narrating the agent flow |
+| Long job runtimes / queueing with many concurrent participants | Serverless default; 100 series by default; CPU model set; `catchup.py` copies reference results in seconds |
+| No GPU (G2 by policy; G1 if no quota) | Foundation results pre-computed on CPU at setup and merged in Lab 5; GPU track only in G1 (§6.6) |
+| Learner jobs / clusters keep running after the lab (Skills 3–4 create them) | End Lab Behavior = terminate; `lab_end` reaper; cluster policy limiting learner clusters |
+| External downloads fail or change at learner runtime | Pinned `mmf_sa` wheel and skill bundle staged in a volume by `workspace_setup`; M5 raw files cached there |
 | Upstream MMF changes break labs | Pin SHA; re-validate before each delivery |
 | Customer network / SSO issues on the day | Get access confirmed early; have a Databricks-hosted backup workspace with participant accounts ready |
-| Writes colliding across participants | Per-user schemas plus `use_case` prefix; read-only shared data |
+| Writes colliding across participants | Per-user output location (Vocareum managed catalog, or `mmf.{user}`) plus `use_case` prefix; read-only shared data |
 
 ## 12. Open questions
 
 1. **Customer workshop:** headcount, exact slot length, onsite vs remote, and their workspace vs a Databricks-provided one. Is Genie Code enabled there? GPU/serverless availability?
 2. **Customer workshop:** do they want a "bring your own data" segment, e.g. running Skill 1 on a customer table at the end?
-3. **Vocareum:** packaging format and onboarding steps with the Course Vendor; provisioning model; Genie Code support in provisioned workspaces; target publication date; pricing/cost caps per learner.
+3. **Vocareum:** Genie Code support in provisioned workspaces; onboarding steps with the Course Vendor app; target publication date; cost caps per learner. (Packaging format and provisioning model are decided, §8.5; remaining platform questions are in `VOCAREUM.md §9`.)
 4. **G3:** confirm the scope against `mmf-mlops/SPEC`, and whether the MLOps demo reuses its `demo/` assets as-is.
 5. Should the course also cover Claude Code / Cursor + ai-dev-kit MCP (Option B install), or Genie Code only?
 
@@ -332,21 +339,26 @@ Scope for G1 if time is short: Labs 0–5 are must-have; Lab 6 and G3 are demo-o
 - **G2:** A fresh Vocareum-provisioned learner environment passes `02_validate_env.py` with no manual steps. Labs 0–5 auto-grade correctly (PASS on reference solution, FAIL on an empty schema). The package is accepted by the Course Vendor.
 - **G3:** The bundle deploys and runs one scheduled scoring cycle on full M5 in a clean schema. The monitoring dashboard shows realised-vs-forecast accuracy. The lab checkpoint PASSes.
 
-## 14. Proposed repository layout
+## 14. Repository layout
+
+Items marked *(planned)* don't exist yet.
 
 ```
 mmf-workshop/
-├── SPECS/SPEC.md                 # this document
-├── setup/                        # admin + per-user provisioning (G1 and G2)
+├── SPECS/                        # SPEC.md (this document), VOCAREUM.md, NOTES.md
+├── setup/                        # admin-only (G1 and G2); never shipped to learners
+│   ├── workspace_setup.py        # Vocareum workspace_setup: data, reference results, staging, grants
+│   ├── user_setup.py             # Vocareum user_setup: MMF skill install per user
+│   ├── autograde.py              # Vocareum autograde: runs lab checkpoints, writes grades
+│   ├── 00_data_load.py
+│   ├── 01_precompute_foundation.py
+│   ├── 02_validate_env.py        # (planned)
 │   ├── VERSIONS.md
-│   ├── participants.csv
-│   ├── 00_admin_setup.py
-│   ├── 01_install_skills.sh
-│   ├── 02_validate_env.py
-│   └── databricks.yml            # optional bundle
+│   └── databricks.yml            # (planned, optional bundle)
 ├── labs/
-│   ├── 00-setup/ … 06-reconciliation/   # README, prompts, checkpoint, catchup, instructor_notes
-│   └── 07-mlops/                 # G3
-├── slides/                       # intro deck, industry mapping, MLOps deck
-└── vocareum/                     # course-vendor packaging, grader wiring, learner instructions
+│   ├── _includes/                # config (read/write locations), checks (checkpoint report)
+│   ├── 00-setup/ … 06-reconciliation/   # README, checkpoint, catchup; prompts, instructor_notes (planned); 02, 03, 06 (planned)
+│   └── 07-mlops/                 # G3 (planned)
+├── slides/                       # intro deck, industry mapping, MLOps deck (planned)
+└── vocareum/                     # course .cfg, learner README, lab_end reaper, deployment guide
 ```

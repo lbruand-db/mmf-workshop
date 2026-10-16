@@ -52,16 +52,37 @@ This is the environment to test the Vocareum packaging and provisioning flow des
 
 **Workaround:** pre-compute foundation model results on CPU (`setup/01_precompute_foundation.py`) and store them in `mmf.m5.reference_evaluation_output` and `mmf.m5.reference_scoring_output`. Participants see real Chronos-2 results in Lab 5 without needing GPU.
 
-**To fix properly:** ask Vocareum to either (a) increase the AWS GPU instance quota for g4dn.xlarge, or (b) enable serverless GPU (AI Runtime) on the workspace.
+~~**To fix properly:** ask Vocareum to either (a) increase the AWS GPU instance quota for g4dn.xlarge, or (b) enable serverless GPU (AI Runtime) on the workspace.~~ *Superseded 2026-10-16:* the L&E Vocareum guidelines forbid GPUs in labs, so pre-computed reference results are the intended design, not a workaround.
 
 ### Next steps to complete risk mitigation
 
 1. ~~**Load M5 data** into `mmf.m5`~~ — DONE: `daily_train_100`, `daily_train_1000`, `m5_static_features`
 2. ~~**Test Lab 4 (CPU)**~~ — DONE: 6 models × 100 series, 891 eval rows each
 3. ~~**Test Lab 5**~~ — DONE: best-model selection works, 99 series ranked
-4. **Pre-compute foundation results** — IN PROGRESS: Chronos-2 on CPU (run 1009123303309902)
+4. ~~**Pre-compute foundation results**~~ — DONE: ChronosBoltSmall on CPU, 200 eval rows (Chronos-2 was replaced by Bolt-Small)
 5. **Test Genie Code** in the browser — verify the skill is visible
 6. **Run a full Lab 1–5 dry run** as a participant to time everything
 7. **Pin the MMF SHA** and record it
 8. **Create a test learner schema** (`mmf.u_testuser`) and verify permissions
-9. **Build the Vocareum setup scripts** (`voc/scripts/workspace_init.sh`, etc.)
+9. ~~**Build the Vocareum setup scripts**~~ — DONE 2026-10-16 as `.cfg` hooks (`setup/workspace_setup`, `user_setup`, `autograde`) plus `vocareum/` packaging; see below
+
+## 2026-10-16 — Review against L&E Vocareum guidelines
+
+Reviewed the labs against go/field-driven-enablement-labs, go/vocareum-lab-guidelines and go/vocareum-lab-development (summarised in `VOCAREUM.md`). What changed as a result:
+
+| Finding | Change |
+|---------|--------|
+| Each workspace has its own metastore; shared data was loaded by hand | `setup/workspace_setup` provisions data, reference results and grants per workspace |
+| Learners have a managed catalog, dropped at cleanup; learner-created catalogs are dropped too | Outputs go to `{managed_catalog}.mmf` (`labs/_includes/config`); no `CREATE CATALOG` in learner notebooks |
+| Skill install had no automated path | `setup/user_setup` installs the skill bundle and templated instructions per user |
+| No GPUs in labs; avoid external code | No GPU path in G2; `mmf_sa` wheel pinned and staged in a volume (`setup/VERSIONS.md`) |
+| Shortcut slow steps ("cooking show") | Lab 4 reference results in `mmf.m5_reference`; every `catchup` copies in seconds |
+| Autograde runs as admin with `username` / `table` | Checkpoints exit with JSON; `setup/autograde` writes the rubric table |
+| `lab_end` must reap what learners create | `vocareum/scripts/python/mmf_lab_end.py` (jobs, runs, clusters, experiments) |
+
+**Not tested on a workspace yet** — no CLI profile was available. Next steps:
+
+1. Upload the `.cfg` and archives to the Vocareum course and run the test plan in `vocareum/README.md`.
+2. Confirm the open items in `VOCAREUM.md §9` (admin cluster DBR / access mode, `lab_end.py` interface, `account users` grants, Genie Code enabled).
+3. Write `prompts.md` per lab, and the missing Labs 02, 03 and 06.
+4. Make the foundation vs CPU comparison fair in Lab 5 (backtest windows differ).

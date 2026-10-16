@@ -1,179 +1,144 @@
-# Vocareum Environment Research — Running MMF
+# Vocareum Environment — Running MMF
 
 > Research note for the MMF workshop spec (see `SPEC.md §8`).
-> Last updated: 2026-10-15.
+> Last updated: 2026-10-16.
+>
+> **Sources:** L&E Confluence — *Field-Driven Enablement Labs in Vocareum* (go/field-driven-enablement-labs), *Vocareum Lab Development Guidelines* (go/vocareum-lab-guidelines), *Lab Development on Vocareum* (go/vocareum-lab-development). Help: #field-driven-labs-vocareum.
+>
+> **Implementation:** `vocareum/README.md` has the concrete course settings, uploads and test plan.
 
 ---
 
-## 1. Vocareum platform overview
+## 1. How Databricks labs work on Vocareum
 
-Vocareum provisions per-learner lab environments in the browser. Three delivery models are relevant:
+Databricks Field Engineering runs Vocareum labs as **Cloud Labs — Databricks**: Vocareum provisions real Databricks workspaces and redirects learners into them. This is the only option for MMF, which needs Genie Code, Unity Catalog, serverless compute, MLflow and Jobs.
 
-| Model | What the learner gets | GPU? | Best for |
-|-------|----------------------|------|----------|
-| **Vocareum Notebook** (Container architecture) | Managed Jupyter container with CPU or GPU toggle | Yes — admin-enabled, time-budgeted per student | Python/ML notebooks, no cloud console needed |
-| **Cloud Labs — Databricks** | A real Databricks workspace (shared or per-learner), accessed via redirect | Yes — whatever the underlying workspace supports (classic clusters or serverless) | Our case: Genie Code + MMF skills + Unity Catalog |
-| **VM Labs** (customer-managed AWS) | Full EC2 instances; allowlisted instance types include GPU families (G4dn/T4, G5/A10G, G6/L4, G6e/L40S, P5/H100) | Yes — any allowlisted EC2 type | Heavy GPU training, multi-VM topologies |
+| Fact | Consequence for MMF |
+|------|---------------------|
+| **AWS only** (Azure expected by end of FY26) | Use AWS instance types; no Azure/GCP features |
+| **Shared workspaces**: each part sets a max number of users per workspace; Vocareum opens another workspace when it's full | No per-learner workspaces. Set the limit as high as product limits allow |
+| **One metastore per workspace** (no longer a global metastore) | Shared data must be loaded **per workspace** by `workspace_setup`; it can't be loaded once by hand |
+| **Learners are workspace users, not admins**; nobody can reach the AWS account or the E2 account | All admin work (catalogs, grants, data load, skill install) runs in admin hooks |
+| **Managed catalog per user**, named after the Vocareum username (`vocuser12345@vocareum.com` → `vocuser12345_vocareum_com`). Learners have all privileges in it but can't drop it; it is dropped at user cleanup | Learner outputs go to `{managed_catalog}.mmf` — isolated, with cleanup for free |
+| Learners may create catalogs, but **any catalog a learner creates is dropped at their cleanup** | Learner notebooks must never `CREATE CATALOG` — a learner-created `mmf` would take the shared data with it |
+| Learners have `SELECT ON ANY FILE` | — |
+| Orgs map to cost centres; use the **GenAI** org for serverless-enabled workspaces | Clone the course template in the GenAI org |
 
-**For the MMF course we need Cloud Labs — Databricks**, because we require Genie Code, Unity Catalog, serverless compute, MLflow, and Databricks Jobs. A Vocareum Notebook alone cannot provide these.
+## 2. L&E guidelines that apply to MMF
 
-## 2. How Vocareum provisions Databricks
+**Do:**
+- Keep cost down (Vocareum, AWS and DBU costs): give learners the **minimum** compute and data size → 100 series by default, serverless.
+- Use shared resources through Unity Catalog → read-only `mmf.m5` and `mmf.m5_reference`.
+- Pre-create what isn't a learning objective → data, reference results and the skill install are all automated.
+- Include a `README.md` with objectives, instructions and resources → `vocareum/docs/README.md`.
+- Shortcut slow tasks "like a cooking show" → every lab `catchup` copies pre-computed results in seconds.
+- Identify quotas and limits early (Jobs, serverless, Genie Code concurrency per workspace).
+- Set the session length thoughtfully, and the budget to **at most 3×** the session length.
+- Automate setup **and** termination: `lab_end` must reap what the lab creates.
 
-### 2.1 Setup flow
-1. **Org-level**: admin connects Vocareum to a Databricks account and supporting cloud infra (AWS or Azure), via the "Setting Up Databricks Resources" guide.
-2. **Course-level**: admin creates a Databricks assignment. Configures the max users per workspace (learners can share a workspace with isolated schemas, or get one workspace each).
-3. **Per-learner hooks** — shell scripts under `/voc/scripts/`:
+**Don't:**
+- **Use GPUs** — expensive, and taken from customers. → No GPU path on Vocareum at all; foundation models come from pre-computed reference results.
+- Use provisioned throughput model serving.
+- Use third-party resources (external APIs, code, libraries) where avoidable. → `mmf_sa` is installed from a wheel pinned and staged in a volume, not from GitHub.
+- Use private-preview features that need workspace-level enablement without an API. → Genie Code, Databricks Apps (Results Explorer), serverless GPU. Request enablement at go/lpt-general-request.
 
-| Script | Runs when | Use for MMF |
-|--------|-----------|-------------|
-| `workspace_init.sh` | After workspace creation | One-time: create catalog, shared M5 schema, deploy Results Explorer app |
-| `lab_setup.sh` | Lab start | Per-lab: create learner schema, install MMF skills, run `catchup.py` for that lab |
-| `user_setup.sh` | Lab start (after `lab_setup.sh`) | Per-user: template `.assistant_instructions.md` with user email |
-| `lab_end.sh` | Lab end | Cleanup: terminate clusters, optionally drop learner schema |
+## 3. Course structure and files
 
-4. **End-of-session options**: "Stop resources" (preserves state for next session) or "Terminate resources" (resets to original state). For a self-paced course, "Stop" is better — learners resume where they left off.
+Course → Assignment → Part. L&E usually makes one Assignment with one Part per lab; each part has its own workspace configuration. Clone an existing template (**Clone by Copy**) rather than starting from scratch.
 
-### 2.2 File layout (`/voc/`)
-Vocareum expects this structure:
+**Part settings that matter:** Lab Type *Databricks*; users per workspace; Session Length (240 min standard); Time Budget; **End Lab Behavior = terminate** (with *stop*, `lab_end` doesn't run); Timer and Readme button on; LTI on for Docebo, off for direct enrolment; Course Feedback on.
+
+**Files** (Configure Workspace → Files). **Never click "save image"**: `/voc` is already persisted on NFS, and images use up the team's limited container slots.
+
 ```
-/voc/
-├── startercode/    # Notebooks imported into the learner's workspace
-├── data/           # Read-only datasets (small); large data pre-staged in the workspace
-├── docs/           # README shown to learners in the Vocareum UI panel
-└── scripts/        # workspace_init.sh, lab_setup.sh, user_setup.sh, lab_end.sh
+/voc/private/courseware/   # course .cfg + notebook archives (+ optional dbfs/, patches/)
+/voc/docs/README.md        # learner instructions, shown in the side pane
+/scripts/                  # .sh wrappers → /scripts/python/*.py
+    workspace_init.py      #   on workspace creation (can be re-run)
+    user_setup.py          #   on user creation
+    lab_setup.py           #   on lab start
+    lab_end.py             #   on End Lab / session expiry — reap resources here
 ```
 
-### 2.3 Grading
-- A `grade.sh` script writes scores to a CSV that Vocareum records.
-- Maps directly to our `checkpoint.py`: the grader runs it and emits PASS (100) or FAIL (0).
-- Grades pass back to the LMS (Canvas, Moodle, etc.) via LTI.
+### `.cfg` keys
 
-## 3. Compute options for MMF on Vocareum
+A JSON file in the course folder ending in `.cfg`. A *DBC object* is `{src, entry?, folder?, patch?}`; `src` is a path to an archive in the course folder (the platform's own example uses a `.zip`).
 
-### 3.1 Serverless (CPU) — the default path
+| Key | Runs as | Receives | MMF use |
+|-----|---------|----------|---------|
+| `content` | — | — | `mmf-workshop-labs.zip`, opens `00-setup/catchup` |
+| `workspace_setup` | admin (workspace + metastore) | `host`, `token` | `setup/workspace_setup` |
+| `user_setup` | admin | `host`, `token`, `username` | `setup/user_setup` |
+| `autograde` | admin | `host`, `token`, `username`, `table` | `setup/autograde` |
+| `admin_cluster_config` | — | — | Cluster that runs the hooks above (DBR, node type, Spark confs, libraries) |
+| `cluster_config` / `warehouse_config` | — | — | Managed per-user compute. **Not used**: learners run on serverless |
+| `secrets`, `enable_dbfs`, `entry` | — | — | Not used |
 
-Databricks serverless notebooks and serverless jobs are available if enabled on the provisioned workspace. This is the **recommended default** for the MMF course:
-- No cluster startup wait (critical for a self-paced lab where learners shouldn't wait 5+ min).
-- No per-learner cluster management or quota planning.
-- Runs all MMF local and global ML model classes (StatsForecast, MLForecast/LightGBM).
-- Cost is pay-per-use; no idle compute waste.
+A `dbfs/` subfolder of the course folder is copied into DBFS; `patches/` holds hotfix replacements for notebooks in an archive.
 
-**Limitation:** serverless CPU cannot run foundation models (Chronos-2, TimesFM) or global DL models (NeuralForecast) — these require GPU.
+## 4. Lifecycle mapped to this repo
 
-### 3.2 Serverless GPU (AI Runtime) — foundation/DL models
+| Vocareum event | What runs | Effect |
+|----------------|-----------|--------|
+| Workspace created | `setup/workspace_setup` | `mmf.m5` data, foundation reference results, Lab 4 reference results in `mmf.m5_reference`, skill bundle and `mmf_sa` wheel in `/Volumes/mmf/m5/assets`, read-only grants to learners |
+| Learner added | `setup/user_setup` | MMF skill and templated `.assistant_instructions.md` in `/Users/{username}/` |
+| Lab start | `content` | `labs/` imported into the learner's folder as `mmf-workshop/` |
+| Submit | `setup/autograde` | Runs each lab `checkpoint` for the learner and writes the grades table |
+| Lab end | template `lab_end.py` → `vocareum/scripts/python/mmf_lab_end.py` | Cancels runs; deletes the learner's jobs (Skill 4), clusters (Skill 3) and MLflow experiments. Vocareum drops the managed catalog itself |
 
-As of 2026, Databricks AI Runtime provides serverless GPU environments (public preview). If available in the Vocareum-provisioned workspace's region:
-- Foundation and DL models can run on serverless GPU notebooks/jobs without managing clusters.
-- No startup delay beyond initial provisioning.
-- Genie Code can guide GPU training/fine-tuning in AI Runtime notebooks.
+## 5. Grading
 
-**Open question:** AI Runtime serverless GPU availability is region-dependent and still in preview. Need to confirm:
-1. Which cloud/region Vocareum provisions for Databricks Cloud Labs.
-2. Whether AI Runtime is enabled there.
-3. Cost per learner per lab session (GPU time budget).
+The `autograde` notebook must create the table named by its `table` parameter with this schema, one row per rubric:
 
-### 3.3 Classic GPU clusters — fallback for foundation/DL
+| Column | Type | Meaning |
+|--------|------|---------|
+| `rubric` | `VARCHAR(255)` | Rubric name, as defined in the Vocareum part configuration |
+| `score` | `INT` | 0 to that rubric's maximum score |
+| `feedback` | `VARCHAR(255)` | Required when the score is below the maximum |
 
-If serverless GPU is not available, provision classic GPU clusters via cluster policies:
+`setup/autograde.py` maps each lab checkpoint to a rubric (`lab0`, `lab1`, `lab4`, `lab5`; max score 1). Grades flow back to the LMS through LTI when it is enabled.
 
-| Cloud | Recommended GPU instance | GPU | VRAM | Use case |
-|-------|--------------------------|-----|------|----------|
-| **AWS** | `g5.xlarge` | 1× A10G | 24 GB | Foundation models (Chronos-2, TimesFM) — single GPU is sufficient |
-| **AWS** | `g4dn.xlarge` | 1× T4 | 16 GB | Budget option; slower but works for Chronos-2 |
-| **AWS** | `g6.xlarge` | 1× L4 | 24 GB | Newer, good availability |
-| **Azure** | `Standard_NC4as_T4_v3` | 1× T4 | 16 GB | Budget option |
-| **Azure** | `Standard_NC8as_T4_v3` | 1× T4 | 16 GB | More CPU/RAM headroom |
+## 6. Compute
 
-**Cluster policy** (enforced via `workspace_init.sh`):
-- Restrict to the GPU instance types above (no learner-chosen expensive instances).
-- Force DBR ML GPU runtime (e.g. `16.x-gpu-ml-scala2.12` or later).
-- Auto-termination: 15–20 min idle.
-- Single node (driver-only) or max 1 worker — MMF foundation models don't need multi-node.
-- Single User data security mode (required for Unity Catalog).
+| Model class | Examples | Compute | Vocareum path |
+|-------------|----------|---------|---------------|
+| Local statistical | SeasonalNaive, AutoETS, AutoTheta, Croston, TSB | CPU | Serverless — learners run it |
+| Global ML | LightGBM (MLForecast) | CPU | Serverless — learners run it |
+| Global DL | NeuralForecast (NHITS, TFT, PatchTST) | GPU | Not offered |
+| Foundation | Chronos, TimesFM, Moirai | GPU | **Reference results only**: pre-computed on CPU by `workspace_setup` (`01_precompute_foundation`, Chronos-Bolt-Small) and merged in Lab 5 |
 
-**Cost concern:** a classic GPU cluster running for the duration of a lab (1–2 h) per learner is expensive at scale. At ~$1.00–$1.50/h (instance + DBU) × 30 learners × 2 h = $60–$90 just for GPU labs. Mitigations:
-- Use GPU only for the foundation model lab (Lab 4), not all labs.
-- Auto-terminate aggressively (15 min).
-- Default to 100-series dataset on GPU labs to keep job runtime < 10 min.
-- Or: skip learner GPU entirely and use pre-computed reference results (§3.5).
+Measured on the Vocareum test workspace (2026-10-15): there is no GPU EC2 quota (`AWS_RESOURCE_QUOTA_EXCEEDED` on `g4dn.xlarge`), and serverless GPU is not enabled. This matches the guideline. Don't ask for GPU quota for this course.
 
-### 3.4 MMF model classes vs compute matrix
+The MMF skills can still provision clusters (Skill 3 offers 16/32 vCPU CPU and GPU options). The learner instructions steer learners to the smallest CPU option, `lab_end` deletes whatever they create, and a cluster policy restricting learner clusters would make this airtight.
 
-| Model class | Examples | Compute required | Vocareum path |
-|-------------|----------|------------------|---------------|
-| Local statistical | SeasonalNaive, AutoETS, AutoTheta, Croston, TSB | CPU | Serverless (default) |
-| Global ML | LightGBM via MLForecast | CPU | Serverless (default) |
-| Global DL | NeuralForecast (NHITS, TFT, PatchTST) | GPU | Serverless GPU or classic GPU cluster |
-| Foundation | Chronos-2, TimesFM 2.5, Moirai | GPU | Serverless GPU or classic GPU cluster |
+## 7. Genie Code
 
-### 3.5 No-GPU fallback: reference results + demo
+- The workspace must be Premium or Enterprise; Genie Code is pay-as-you-go with a free monthly allowance per user.
+- The skill must sit at exact paths: the bundle's contents flat in `/Users/{user}/.assistant/skills/` and the instructions at `/Users/{user}/.assistant_instructions.md`. The leading dots matter. `setup/user_setup` installs both and fills in the `### User Context` block.
+- **Still to confirm:** that Genie Code is enabled on Vocareum-provisioned workspaces in the GenAI org, and its concurrency limits for a full workspace of learners.
 
-If GPU is not available or too expensive for a self-paced course:
-- Foundation/DL results are **pre-computed** and staged in `{catalog}.m5_reference`.
-- Lab 4 runs only local + global ML models (CPU, serverless, ~5–10 min on 100 series).
-- Foundation model results are loaded from reference tables and explored in Lab 5 alongside the learner's own CPU results.
-- An optional video or instructor demo shows the foundation model run.
+## 8. Cost per learner (rough)
 
-This is the **safest default** for the Vocareum course until GPU availability and cost are confirmed.
+| Component | Estimate |
+|-----------|----------|
+| Serverless notebooks and jobs, 100 series (Labs 0–5) | ~$2–4 |
+| Genie Code | Free allowance is likely enough for one course |
+| Shared setup per workspace (data load, reference runs on the admin cluster) | One-off, split across all learners in the workspace |
+| **Total** | **~$2–4**, plus Vocareum and AWS platform costs |
 
-## 4. Genie Code on Vocareum
+What learners leave running dominates the cost. That's why End Lab Behavior must be *terminate* and `lab_end` must reap jobs and clusters.
 
-Genie Code is the primary interface for the MMF workshop. Requirements:
-- The Databricks workspace must be **Premium or Enterprise** tier (Genie Code is not available on Standard; note Azure Standard tier retires 2026-10-01).
-- Genie Code billing is pay-as-you-go (since July 2026) with a free monthly per-user allowance.
-- The MMF skill bundle must be installed per-user at the exact paths (`/Users/{user}/.assistant/skills/` and `/Users/{user}/.assistant_instructions.md`). The `user_setup.sh` hook handles this.
+## 9. Open questions
 
-**Open question:** confirm that Genie Code is available on Vocareum-provisioned Databricks workspaces. It should be (it's a workspace feature, not a Vocareum feature), but the workspace tier and entitlements must be right.
-
-## 5. Recommended Vocareum architecture for the MMF course
-
-### Option A — shared workspace, per-learner schema (recommended)
-- **1 workspace** per cohort (up to ~50 learners).
-- Each learner gets their own schema (`{catalog}.u_{shortname}`).
-- Shared read-only data in `{catalog}.m5`.
-- Shared cluster policies, Results Explorer app, and reference results.
-- **Pros:** simpler provisioning, lower fixed cost, shared resources.
-- **Cons:** noisy-neighbor risk on concurrent serverless jobs; workspace-level settings shared.
-
-### Option B — per-learner workspace
-- Each learner gets their own workspace.
-- Full isolation; no contention.
-- **Pros:** no resource contention, cleaner.
-- **Cons:** much higher provisioning cost and time; M5 data must be replicated per workspace (or shared via a central metastore); more complex setup scripts.
-
-**Recommendation:** Option A for cost and simplicity. The per-user schema + `use_case` prefix provides sufficient isolation for the MMF pipeline. Serverless compute handles concurrency well.
-
-## 6. Cost estimation per learner
-
-| Component | Option A (serverless CPU only) | Option A (serverless CPU + classic GPU) |
-|-----------|-------------------------------|----------------------------------------|
-| Serverless compute (Labs 0–3, 5) | ~$2–4 (1–2 h of notebook + job DBUs on 100 series) | ~$2–4 |
-| GPU cluster (Lab 4 foundation models, 15–30 min) | N/A — use reference results | ~$0.75–$1.50 |
-| Genie Code | Free allowance likely sufficient for 1 course | Same |
-| SQL warehouse (Results Explorer app) | Shared; ~$0.50–$1 per learner | Same |
-| **Total per learner** | **~$3–5** | **~$4–7** |
-
-These are rough estimates. Actual cost depends on cloud/region, instance pricing, and how long learners leave things running. The `lab_end.sh` hook terminating all resources is critical for cost control.
-
-## 7. Summary of open questions for Vocareum
-
-| # | Question | Blocking? |
-|---|----------|-----------|
-| 1 | Which cloud and region does Vocareum provision Databricks workspaces in? | Yes — determines GPU instance availability |
-| 2 | Is AI Runtime (serverless GPU) available in that region? | Yes — determines whether foundation models need classic clusters |
-| 3 | Is Genie Code available on the provisioned workspace tier? | Yes — core dependency |
-| 4 | Shared workspace (Option A) or per-learner workspace (Option B)? | Yes — drives setup script design |
-| 5 | Per-learner compute budget / time cap? | No — but needed for cost planning |
-| 6 | Exact Course Vendor packaging format (manifest, ZIP structure)? | No — needed for G2 delivery, not for G1 |
-| 7 | Can `workspace_init.sh` run Databricks CLI commands (e.g. `databricks workspace import-dir`)? | Yes — needed for skill installation |
-
-## 8. Recommendation
-
-**For the initial Vocareum course, default to serverless CPU only (no GPU).** Use the 100-series dataset and the local + global ML model set. Foundation model results come from pre-computed reference tables. This eliminates GPU quota, cost, and availability risks entirely.
-
-Add GPU as an **elective upgrade** once we confirm:
-- The cloud/region and GPU instance availability.
-- AI Runtime serverless GPU or a viable classic GPU cluster policy.
-- An acceptable per-learner GPU cost budget.
-
-This matches the lab independence principle: the foundation model lab works with or without GPU, because `catchup.py` can load reference results either way.
+| # | Question | Status |
+|---|----------|--------|
+| 1 | Cloud/region | **AWS** (only option) |
+| 2 | GPU / serverless GPU | **Not used** — against guidelines, and unavailable anyway |
+| 3 | Per-learner or shared workspace | **Shared**, with a users-per-workspace limit and per-user managed catalogs |
+| 4 | Packaging format | **`.cfg` + archives** in `/voc/private/courseware`, README in `/voc/docs` — see `vocareum/README.md` |
+| 5 | Can setup call the Databricks APIs? | **Yes** — `workspace_setup` / `user_setup` / `autograde` get `host` and `token` |
+| 6 | Genie Code enabled on provisioned workspaces? | **Open** — check in Student View; otherwise go/lpt-general-request |
+| 7 | Admin cluster DBR and Unity Catalog access mode for `/Volumes` | **Open** — check on first deployment |
+| 8 | How the template's `lab_end.py` receives `host` / `token` / `username` | **Open** — check in the cloned template |
+| 9 | Does `account users` cover Vocareum learners (for grants)? | **Open** |
+| 10 | Can rubrics be scoped per part, if each lab becomes its own part? | **Open** — `autograde` currently grades all labs |
