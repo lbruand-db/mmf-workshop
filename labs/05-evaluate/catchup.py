@@ -5,16 +5,23 @@
 # MAGIC Selects the best model per series, produces an evaluation summary,
 # MAGIC and writes the results tables.
 # MAGIC
+# MAGIC Automatically merges pre-computed foundation model results (from
+# MAGIC `mmf.m5.reference_evaluation_output`) with participant CPU results,
+# MAGIC so every participant sees how foundation models compare — even without
+# MAGIC GPU access.
+# MAGIC
 # MAGIC This notebook is both the **catchup/bootstrap** and the **reference solution**.
 
 # COMMAND ----------
 
 dbutils.widgets.text("catalog", "mmf")
 dbutils.widgets.text("user_schema", "")
+dbutils.widgets.text("source_schema", "m5")
 dbutils.widgets.text("metric", "smape")
 
 catalog = dbutils.widgets.get("catalog")
 user_schema = dbutils.widgets.get("user_schema")
+source_schema = dbutils.widgets.get("source_schema")
 metric = dbutils.widgets.get("metric")
 
 if not user_schema:
@@ -22,6 +29,7 @@ if not user_schema:
     user_schema = user.split("@")[0].replace(".", "_")
 
 print(f"Schema: {catalog}.{user_schema}")
+print(f"Source schema: {catalog}.{source_schema}")
 print(f"Metric: {metric}")
 
 # COMMAND ----------
@@ -35,7 +43,45 @@ eval_table = f"{catalog}.{user_schema}.m5_evaluation_output"
 eval_df = spark.table(eval_table)
 eval_count = eval_df.count()
 assert eval_count > 0, f"Evaluation table {eval_table} is empty — run Lab 4 first"
+
+models_present = [r["model"] for r in eval_df.select("model").distinct().collect()]
 print(f"Evaluation rows: {eval_count}")
+print(f"Models from Lab 4: {sorted(models_present)}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Merge foundation model reference results
+# MAGIC
+# MAGIC If the shared schema has pre-computed foundation model results
+# MAGIC (`reference_evaluation_output`), append them to the participant's
+# MAGIC evaluation table. This gives a complete picture across all model
+# MAGIC classes without requiring GPU access.
+
+# COMMAND ----------
+
+ref_table = f"{catalog}.{source_schema}.reference_evaluation_output"
+ref_added = 0
+
+try:
+    ref_df = spark.table(ref_table)
+    ref_models = [r["model"] for r in ref_df.select("model").distinct().collect()]
+
+    already_have = set(models_present)
+    new_models = [m for m in ref_models if m not in already_have]
+
+    if new_models:
+        ref_subset = ref_df.filter(ref_df.model.isin(new_models))
+
+        common_cols = list(set(eval_df.columns) & set(ref_subset.columns))
+        ref_subset.select(common_cols).write.format("delta").mode("append").saveAsTable(eval_table)
+
+        ref_added = ref_subset.count()
+        print(f"Appended {ref_added} reference rows for models: {new_models}")
+    else:
+        print(f"Foundation models {ref_models} already in evaluation table — skipping merge")
+except Exception as e:
+    print(f"No reference results found ({e}) — continuing with CPU models only")
 
 # COMMAND ----------
 
@@ -48,6 +94,8 @@ print(f"Evaluation rows: {eval_count}")
 
 # COMMAND ----------
 
+combined_table = f"{catalog}.{user_schema}.m5_evaluation_output"
+
 spark.sql(f"""
 CREATE OR REPLACE TABLE {catalog}.{user_schema}.m5_best_models AS
 WITH avg_metrics AS (
@@ -56,7 +104,7 @@ WITH avg_metrics AS (
         model,
         AVG(metric_value) AS avg_metric,
         COUNT(*) AS n_windows
-    FROM {eval_table}
+    FROM {combined_table}
     WHERE metric_name = '{metric}'
     GROUP BY unique_id, model
 ),
