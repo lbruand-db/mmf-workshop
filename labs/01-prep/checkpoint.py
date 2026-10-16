@@ -8,6 +8,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../_includes/checks
+
+# COMMAND ----------
+
 checks = []
 table = f"{out}.m5_train_data"
 
@@ -29,10 +33,4 @@ if n > 0:
 
 # COMMAND ----------
 
-all_pass = all(ok for _, ok, _ in checks)
-for name, ok, detail in checks:
-    status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {name} {detail}")
-
-print(f"\nLab 1: {'PASS' if all_pass else 'FAIL'}")
-dbutils.notebook.exit("PASS" if all_pass else "FAIL")
+finish("Lab 1", checks)

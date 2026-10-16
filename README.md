@@ -24,12 +24,14 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 ├── setup/                    # Admin-only — never shipped to learners
 │   ├── workspace_setup.py    # Once per workspace: data, skill bundle staging, grants
 │   ├── user_setup.py         # Once per learner: install MMF skill for Genie Code
+│   ├── autograde.py          # Vocareum autograder: runs every lab checkpoint for a learner
 │   ├── 00_data_load.py       # Load M5 data into Unity Catalog (called by workspace_setup)
 │   ├── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
 │   └── VERSIONS.md           # Pinned upstream versions
 └── labs/
     ├── _includes/
-    │   └── config.py         # Shared widgets + read/write locations (%run by every lab)
+    │   ├── config.py         # Shared widgets + read/write locations (%run by every lab)
+    │   └── checks.py         # Checkpoint report + JSON exit (%run by every checkpoint)
     ├── 00-setup/
     │   ├── catchup.py        # Create user schema, verify data and skills
     │   └── checkpoint.py     # PASS/FAIL validation
@@ -61,7 +63,7 @@ Override with the `user_catalog` / `user_schema` widgets (job parameters). Learn
 
 Every lab can be entered cold. Each lab directory contains:
 - **`catchup.py`** — Bootstrap notebook that produces all expected outputs in seconds, by copying pre-computed reference results from `mmf.m5_reference`. Run this to skip to any lab without completing prior ones.
-- **`checkpoint.py`** — PASS/FAIL validation that verifies the lab's outputs exist and are correct.
+- **`checkpoint.py`** — PASS/FAIL validation that verifies the lab's outputs exist and are correct. Exits with JSON (`{"lab", "status", "checks"}`) for the autograder.
 
 ## Setup (instructor / admin)
 
@@ -88,6 +90,12 @@ Run once per workspace. It:
 ### 2. User setup — `setup/user_setup.py`
 
 Run once per learner, with `username` set to their email (comma-separated for several). It installs the staged bundle into `/Users/{email}/.assistant/skills/`, and `assistant_instructions.md` — with its `### User Context` filled in — as `/Users/{email}/.assistant_instructions.md`.
+
+### 3. Grading — `setup/autograde.py`
+
+The Vocareum `autograde` entry. Runs as admin when the learner clicks **Submit**, with `username` and `table`. It runs each lab's `checkpoint` for that learner (via the `username` widget in `labs/_includes/config`) and writes one row per lab to `table`: `rubric` (`lab0`, `lab1`, `lab4`, `lab5`), `score` (`max_score`, default 1, or 0) and `feedback` (the failed checks). The rubric names and maximum scores in the Vocareum part configuration must match.
+
+Instructors can run it with only `username` set to print a participant's grades.
 
 ### Packaging
 

@@ -8,6 +8,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../_includes/checks
+
+# COMMAND ----------
+
 checks = []
 
 try:
@@ -26,10 +30,4 @@ for t in ["daily_train_100", "daily_train_1000"]:
 
 # COMMAND ----------
 
-all_pass = all(ok for _, ok, _ in checks)
-for name, ok, detail in checks:
-    status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {name} {detail}")
-
-print(f"\nLab 0: {'PASS' if all_pass else 'FAIL'}")
-dbutils.notebook.exit("PASS" if all_pass else "FAIL")
+finish("Lab 0", checks)

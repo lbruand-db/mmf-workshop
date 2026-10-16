@@ -268,7 +268,7 @@ Self-paced conversion of §6. Target ~4 h of learner time:
 - Session limits: time-boxed lab sessions, with idle compute auto-terminated. Model sets are restricted via cluster policies, or serverless budget policies, to control cost.
 
 ### 8.4 Assessment
-- Each lab's `checkpoint.py` returns machine-readable PASS/FAIL (exit status / JSON). Vocareum maps it to a grade.
+- Each lab's `checkpoint.py` exits with machine-readable JSON (`status` PASS/FAIL plus per-check details). `setup/autograde.py`, the Vocareum `autograde` entry, runs them for the submitting learner and writes the `rubric` / `score` / `feedback` table Vocareum reads.
 - Module quizzes cover the concepts in §3 objectives 1, 4 and 6.
 - Completion requires Labs 0–5 PASS.
 

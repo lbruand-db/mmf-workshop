@@ -18,6 +18,9 @@
 # MAGIC   `{managed_catalog}.mmf`.
 # MAGIC - **Elsewhere (instructor-led workshop):** no managed catalog exists, so outputs
 # MAGIC   go to `{catalog}.{user}` where `{user}` is derived from the email.
+# MAGIC
+# MAGIC `username` is for the grader only: `setup/autograde` runs checkpoints as an
+# MAGIC admin and sets it to the learner's email so their locations are resolved.
 
 # COMMAND ----------
 
@@ -27,13 +30,14 @@ dbutils.widgets.text("catalog", "mmf")
 dbutils.widgets.text("source_schema", "m5")
 dbutils.widgets.text("user_catalog", "")
 dbutils.widgets.text("user_schema", "")
+dbutils.widgets.text("username", "")
 
 catalog = dbutils.widgets.get("catalog")
 source_schema = dbutils.widgets.get("source_schema")
 user_catalog = dbutils.widgets.get("user_catalog")
 user_schema = dbutils.widgets.get("user_schema")
 
-user_email = spark.sql("select current_user() as user").collect()[0]["user"]
+user_email = dbutils.widgets.get("username") or spark.sql("select current_user() as user").collect()[0]["user"]
 
 
 def _identifier(s: str) -> str:

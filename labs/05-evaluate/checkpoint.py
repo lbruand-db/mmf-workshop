@@ -8,6 +8,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../_includes/checks
+
+# COMMAND ----------
+
 checks = []
 
 best_table = f"{out}.m5_best_models"
@@ -28,10 +32,4 @@ except Exception as e:
 
 # COMMAND ----------
 
-all_pass = all(ok for _, ok, _ in checks)
-for name, ok, detail in checks:
-    status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {name} {detail}")
-
-print(f"\nLab 5: {'PASS' if all_pass else 'FAIL'}")
-dbutils.notebook.exit("PASS" if all_pass else "FAIL")
+finish("Lab 5", checks)

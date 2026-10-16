@@ -8,6 +8,10 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../_includes/checks
+
+# COMMAND ----------
+
 checks = []
 
 eval_table = f"{out}.m5_evaluation_output"
@@ -25,15 +29,9 @@ scoring_table = f"{out}.m5_scoring_output"
 try:
     scoring_count = spark.table(scoring_table).count()
     checks.append(("Scoring table exists", True, f"{scoring_count} rows"))
-except Exception:
-    checks.append(("Scoring table exists", False, "optional — may not exist if scoring_data was None"))
+except Exception as e:
+    checks.append(("Scoring table exists", False, str(e)))
 
 # COMMAND ----------
 
-all_pass = all(ok for _, ok, _ in checks)
-for name, ok, detail in checks:
-    status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {name} {detail}")
-
-print(f"\nLab 4: {'PASS' if all_pass else 'FAIL'}")
-dbutils.notebook.exit("PASS" if all_pass else "FAIL")
+finish("Lab 4", checks)
