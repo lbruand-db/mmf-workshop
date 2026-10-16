@@ -4,20 +4,12 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
+# MAGIC %run ../_includes/config
 
 # COMMAND ----------
 
 checks = []
-table = f"{catalog}.{user_schema}.m5_train_data"
+table = f"{out}.m5_train_data"
 
 try:
     df = spark.table(table)

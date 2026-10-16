@@ -6,29 +6,20 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
-
-print(f"Catalog: {catalog}")
-print(f"User schema: {user_schema}")
+# MAGIC %run ../_includes/config
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ### Create user schema
+# MAGIC
+# MAGIC Only the schema is created here — never a catalog. On Vocareum, catalogs a
+# MAGIC learner creates are dropped when that learner's lab ends.
 
 # COMMAND ----------
 
-_ = spark.sql(f"CREATE CATALOG IF NOT EXISTS {catalog}")
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{user_schema}")
-print(f"Schema {catalog}.{user_schema} ready.")
+_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
+print(f"Schema {out} ready.")
 
 # COMMAND ----------
 
@@ -38,9 +29,9 @@ print(f"Schema {catalog}.{user_schema} ready.")
 # COMMAND ----------
 
 tables_to_check = [
-    f"{catalog}.m5.daily_train_100",
-    f"{catalog}.m5.daily_train_1000",
-    f"{catalog}.m5.m5_static_features",
+    f"{source}.daily_train_100",
+    f"{source}.daily_train_1000",
+    f"{source}.m5_static_features",
 ]
 
 all_ok = True
@@ -63,7 +54,6 @@ for t in tables_to_check:
 
 # COMMAND ----------
 
-user_email = spark.sql("select current_user() as user").collect()[0]["user"]
 skill_path = f"/Users/{user_email}/.assistant/skills/SKILL.md"
 
 try:

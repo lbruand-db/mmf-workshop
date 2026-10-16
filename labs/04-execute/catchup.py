@@ -26,31 +26,23 @@ logging.getLogger("py4j.java_gateway").setLevel(logging.WARNING)
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-dbutils.widgets.text("source_schema", "m5")
+# MAGIC %run ../_includes/config
+
+# COMMAND ----------
+
 dbutils.widgets.text("n_series", "1000")
 dbutils.widgets.text("run_id", "")
 
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-source_schema = dbutils.widgets.get("source_schema")
 n_series = dbutils.widgets.get("n_series")
 run_id = dbutils.widgets.get("run_id") or str(uuid.uuid4())
 
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
-    print(f"No user_schema provided, using: {user_schema}")
-
-train_table = f"{catalog}.{source_schema}.daily_train_{n_series}"
+train_table = f"{source}.daily_train_{n_series}"
 print(f"Train data: {train_table}")
-print(f"Output schema: {catalog}.{user_schema}")
 print(f"Run ID: {run_id}")
 
 # COMMAND ----------
 
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{user_schema}")
+_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
 
 # COMMAND ----------
 
@@ -73,8 +65,6 @@ assert row_count > 0, f"Training table {train_table} is empty"
 
 from mmf_sa import run_forecast
 
-user_email = spark.sql("select current_user() as user").collect()[0]["user"]
-
 local_models = [
     "StatsForecastBaselineSeasonalNaive",
     "StatsForecastAutoETS",
@@ -87,8 +77,8 @@ run_forecast(
     spark=spark,
     train_data=train_table,
     scoring_data=train_table,
-    scoring_output=f"{catalog}.{user_schema}.m5_scoring_output",
-    evaluation_output=f"{catalog}.{user_schema}.m5_evaluation_output",
+    scoring_output=f"{out}.m5_scoring_output",
+    evaluation_output=f"{out}.m5_evaluation_output",
     group_id="unique_id",
     date_col="ds",
     target="y",
@@ -122,8 +112,8 @@ global_ml_models = [
 run_forecast(
     spark=spark,
     train_data=train_table,
-    evaluation_output=f"{catalog}.{user_schema}.m5_evaluation_output",
-    model_output=f"{catalog}.{user_schema}",
+    evaluation_output=f"{out}.m5_evaluation_output",
+    model_output=out,
     group_id="unique_id",
     date_col="ds",
     target="y",
@@ -151,9 +141,9 @@ print("Global ML models complete.")
 
 # COMMAND ----------
 
-eval_count = spark.table(f"{catalog}.{user_schema}.m5_evaluation_output").count()
+eval_count = spark.table(f"{out}.m5_evaluation_output").count()
 eval_models = (
-    spark.table(f"{catalog}.{user_schema}.m5_evaluation_output")
+    spark.table(f"{out}.m5_evaluation_output")
     .select("model").distinct().collect()
 )
 model_names = sorted([r["model"] for r in eval_models])
@@ -161,9 +151,9 @@ model_names = sorted([r["model"] for r in eval_models])
 print(f"Evaluation output: {eval_count} rows")
 print(f"Models evaluated: {model_names}")
 
-scoring_exists = spark.catalog.tableExists(f"{catalog}.{user_schema}.m5_scoring_output")
+scoring_exists = spark.catalog.tableExists(f"{out}.m5_scoring_output")
 if scoring_exists:
-    scoring_count = spark.table(f"{catalog}.{user_schema}.m5_scoring_output").count()
+    scoring_count = spark.table(f"{out}.m5_scoring_output").count()
     print(f"Scoring output: {scoring_count} rows")
 
 # COMMAND ----------

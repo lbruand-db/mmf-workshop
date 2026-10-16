@@ -11,29 +11,22 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-dbutils.widgets.text("source_schema", "m5")
-dbutils.widgets.text("n_series", "1000")
+# MAGIC %run ../_includes/config
 
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-source_schema = dbutils.widgets.get("source_schema")
+# COMMAND ----------
+
+dbutils.widgets.text("n_series", "1000")
 n_series = dbutils.widgets.get("n_series")
 
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
-
-source_table = f"{catalog}.{source_schema}.daily_train_{n_series}"
-target_table = f"{catalog}.{user_schema}.m5_train_data"
+source_table = f"{source}.daily_train_{n_series}"
+target_table = f"{out}.m5_train_data"
 
 print(f"Source: {source_table}")
 print(f"Target: {target_table}")
 
 # COMMAND ----------
 
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{user_schema}")
+_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
 
 # COMMAND ----------
 

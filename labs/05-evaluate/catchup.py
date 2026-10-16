@@ -14,22 +14,12 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-dbutils.widgets.text("source_schema", "m5")
+# MAGIC %run ../_includes/config
+
+# COMMAND ----------
+
 dbutils.widgets.text("metric", "smape")
-
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-source_schema = dbutils.widgets.get("source_schema")
 metric = dbutils.widgets.get("metric")
-
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
-
-print(f"Schema: {catalog}.{user_schema}")
-print(f"Source schema: {catalog}.{source_schema}")
 print(f"Metric: {metric}")
 
 # COMMAND ----------
@@ -39,7 +29,7 @@ print(f"Metric: {metric}")
 
 # COMMAND ----------
 
-eval_table = f"{catalog}.{user_schema}.m5_evaluation_output"
+eval_table = f"{out}.m5_evaluation_output"
 eval_df = spark.table(eval_table)
 eval_count = eval_df.count()
 assert eval_count > 0, f"Evaluation table {eval_table} is empty — run Lab 4 first"
@@ -60,7 +50,7 @@ print(f"Models from Lab 4: {sorted(models_present)}")
 
 # COMMAND ----------
 
-ref_table = f"{catalog}.{source_schema}.reference_evaluation_output"
+ref_table = f"{source}.reference_evaluation_output"
 ref_added = 0
 
 try:
@@ -94,10 +84,10 @@ except Exception as e:
 
 # COMMAND ----------
 
-combined_table = f"{catalog}.{user_schema}.m5_evaluation_output"
+combined_table = f"{out}.m5_evaluation_output"
 
 spark.sql(f"""
-CREATE OR REPLACE TABLE {catalog}.{user_schema}.m5_best_models AS
+CREATE OR REPLACE TABLE {out}.m5_best_models AS
 WITH avg_metrics AS (
     SELECT
         unique_id,
@@ -133,7 +123,7 @@ FROM ranked
 WHERE rank = 1
 """)
 
-best_count = spark.table(f"{catalog}.{user_schema}.m5_best_models").count()
+best_count = spark.table(f"{out}.m5_best_models").count()
 print(f"Best models selected for {best_count} series")
 
 # COMMAND ----------
@@ -144,9 +134,9 @@ print(f"Best models selected for {best_count} series")
 # COMMAND ----------
 
 spark.sql(f"""
-CREATE OR REPLACE TABLE {catalog}.{user_schema}.m5_evaluation_summary AS
+CREATE OR REPLACE TABLE {out}.m5_evaluation_summary AS
 WITH best AS (
-    SELECT * FROM {catalog}.{user_schema}.m5_best_models
+    SELECT * FROM {out}.m5_best_models
 ),
 total AS (
     SELECT COUNT(*) AS total_series FROM best
@@ -162,7 +152,7 @@ GROUP BY b.best_model, t.total_series
 ORDER BY wins_count DESC
 """)
 
-display(spark.table(f"{catalog}.{user_schema}.m5_evaluation_summary"))
+display(spark.table(f"{out}.m5_evaluation_summary"))
 
 # COMMAND ----------
 
@@ -178,7 +168,7 @@ SELECT
     ROUND(AVG(best_metric), 4) AS overall_avg_metric,
     ROUND(PERCENTILE(best_metric, 0.5), 4) AS median_metric,
     ROUND(MAX(best_metric), 4) AS worst_metric
-FROM {catalog}.{user_schema}.m5_best_models
+FROM {out}.m5_best_models
 """)
 display(overall)
 
@@ -191,7 +181,7 @@ display(overall)
 
 display(spark.sql(f"""
 SELECT *
-FROM {catalog}.{user_schema}.m5_best_models
+FROM {out}.m5_best_models
 ORDER BY best_metric DESC
 LIMIT 10
 """))
@@ -199,5 +189,5 @@ LIMIT 10
 # COMMAND ----------
 
 import json
-result = spark.sql(f"SELECT COUNT(*) AS n FROM {catalog}.{user_schema}.m5_best_models").collect()[0]["n"]
+result = spark.sql(f"SELECT COUNT(*) AS n FROM {out}.m5_best_models").collect()[0]["n"]
 dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "best_models_count": result}))

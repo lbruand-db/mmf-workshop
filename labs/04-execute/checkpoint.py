@@ -4,21 +4,13 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
+# MAGIC %run ../_includes/config
 
 # COMMAND ----------
 
 checks = []
 
-eval_table = f"{catalog}.{user_schema}.m5_evaluation_output"
+eval_table = f"{out}.m5_evaluation_output"
 try:
     eval_df = spark.table(eval_table)
     eval_count = eval_df.count()
@@ -29,7 +21,7 @@ try:
 except Exception as e:
     checks.append(("Evaluation table exists", False, str(e)))
 
-scoring_table = f"{catalog}.{user_schema}.m5_scoring_output"
+scoring_table = f"{out}.m5_scoring_output"
 try:
     scoring_count = spark.table(scoring_table).count()
     checks.append(("Scoring table exists", True, f"{scoring_count} rows"))

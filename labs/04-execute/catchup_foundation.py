@@ -25,33 +25,26 @@ logging.getLogger("mlflow.tracking.context.registry").setLevel(logging.ERROR)
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "mmf")
-dbutils.widgets.text("user_schema", "")
-dbutils.widgets.text("source_schema", "m5")
+# MAGIC %run ../_includes/config
+
+# COMMAND ----------
+
 dbutils.widgets.text("n_series", "100")
 dbutils.widgets.text("run_id", "")
 dbutils.widgets.dropdown("model", "Chronos2", ["Chronos2", "Chronos2Small", "ChronosBoltSmall", "TimesFM_2_5_200m"])
 
-catalog = dbutils.widgets.get("catalog")
-user_schema = dbutils.widgets.get("user_schema")
-source_schema = dbutils.widgets.get("source_schema")
 n_series = dbutils.widgets.get("n_series")
 run_id = dbutils.widgets.get("run_id") or str(uuid.uuid4())
 model = dbutils.widgets.get("model")
 
-if not user_schema:
-    user = spark.sql("select current_user() as user").collect()[0]["user"]
-    user_schema = user.split("@")[0].replace(".", "_")
-
-train_table = f"{catalog}.{source_schema}.daily_train_{n_series}"
+train_table = f"{source}.daily_train_{n_series}"
 print(f"Train data: {train_table}")
-print(f"Output schema: {catalog}.{user_schema}")
 print(f"Model: {model}")
 print(f"Run ID: {run_id}")
 
 # COMMAND ----------
 
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{user_schema}")
+_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
 
 # COMMAND ----------
 
@@ -65,15 +58,13 @@ _ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{user_schema}")
 
 from mmf_sa import run_forecast
 
-user_email = spark.sql("select current_user() as user").collect()[0]["user"]
-
 run_forecast(
     spark=spark,
     train_data=train_table,
     scoring_data=train_table,
-    scoring_output=f"{catalog}.{user_schema}.m5_scoring_output",
-    evaluation_output=f"{catalog}.{user_schema}.m5_evaluation_output",
-    model_output=f"{catalog}.{user_schema}",
+    scoring_output=f"{out}.m5_scoring_output",
+    evaluation_output=f"{out}.m5_evaluation_output",
+    model_output=out,
     group_id="unique_id",
     date_col="ds",
     target="y",
@@ -103,7 +94,7 @@ print(f"{model} complete.")
 
 foundation_rows = spark.sql(f"""
     SELECT COUNT(*) AS n
-    FROM {catalog}.{user_schema}.m5_evaluation_output
+    FROM {out}.m5_evaluation_output
     WHERE model = '{model}'
 """).collect()[0]["n"]
 print(f"{model} evaluation rows: {foundation_rows}")

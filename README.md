@@ -25,6 +25,8 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   ├── 00_data_load.py       # Load M5 data into Unity Catalog
 │   └── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
 └── labs/
+    ├── _includes/
+    │   └── config.py         # Shared widgets + read/write locations (%run by every lab)
     ├── 00-setup/
     │   ├── catchup.py        # Create user schema, verify data and skills
     │   └── checkpoint.py     # PASS/FAIL validation
@@ -39,6 +41,17 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
         ├── catchup.py        # Best-model selection + evaluation summary
         └── checkpoint.py
 ```
+
+## Where outputs go
+
+Every lab notebook runs `labs/_includes/config` first, which prints the shared data location and the learner's output location:
+
+| Environment | Reads from | Writes to |
+|-------------|-----------|-----------|
+| Vocareum | `mmf.m5` | `{managed_catalog}.mmf` — the per-user catalog Vocareum creates (e.g. `vocuser12345_vocareum_com`) and drops at lab end |
+| Instructor-led workshop | `mmf.m5` | `mmf.{user}` — schema derived from the email |
+
+Override with the `user_catalog` / `user_schema` widgets (job parameters). Learner notebooks never create catalogs.
 
 ## Lab independence
 
