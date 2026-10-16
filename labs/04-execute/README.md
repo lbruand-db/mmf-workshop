@@ -13,8 +13,9 @@ Run the MMF forecasting pipeline across three model classes — local statistica
 
 ## Hints
 
-- Start with `n_series=100` for fast iteration (~5 min). Move to `n_series=1000` once you're confident.
-- The CPU notebook (`catchup.py`) runs 5 local + 1 global ML model. Foundation models are in `catchup_foundation.py` (requires GPU — pre-computed results are available in Lab 5).
+- Short on time? `catchup.py` copies the reference results into your schema in seconds.
+- `run_cpu.py` is the reference solution: it runs 5 local + 1 global ML model on 100 series (~5–10 min) without the agent. Set `n_series=1000` to try a bigger run.
+- Foundation models are in `run_foundation.py`, which needs a GPU. Pre-computed foundation results are merged in Lab 5.
 - Key parameters to experiment with:
   - `backtest_length=90` — how many days of history to use for evaluation
   - `stride=7` — how often to slide the evaluation window

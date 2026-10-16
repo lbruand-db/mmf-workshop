@@ -15,7 +15,7 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("n_series", "1000")
+dbutils.widgets.text("n_series", "100")
 n_series = dbutils.widgets.get("n_series")
 
 source_table = f"{source}.daily_train_{n_series}"

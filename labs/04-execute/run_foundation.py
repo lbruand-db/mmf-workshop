@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 4 — Foundation Model Forecast (GPU)
+# MAGIC # Lab 4 — Run Foundation Model Forecast (GPU, instructor-led only)
 # MAGIC
 # MAGIC Runs Chronos-2 on a reduced dataset (100 series) with a shorter backtest
 # MAGIC window for fast iteration. Requires a GPU cluster (`g4dn.xlarge` / T4)
@@ -8,6 +8,9 @@
 # MAGIC
 # MAGIC Results append to the same evaluation/scoring tables as the CPU notebook,
 # MAGIC so Lab 5 sees all model classes together.
+# MAGIC
+# MAGIC **Not for Vocareum** (no GPUs there): Lab 5 merges pre-computed
+# MAGIC foundation results instead.
 
 # COMMAND ----------
 

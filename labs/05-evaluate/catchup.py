@@ -30,9 +30,19 @@ print(f"Metric: {metric}")
 # COMMAND ----------
 
 eval_table = f"{out}.m5_evaluation_output"
+
+# Entering Lab 5 cold: start from the reference Lab 4 results.
+if not spark.catalog.tableExists(eval_table) or spark.table(eval_table).isEmpty():
+    _ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
+    (
+        spark.table(f"{reference}.m5_evaluation_output")
+        .write.format("delta").mode("overwrite").option("overwriteSchema", "true")
+        .saveAsTable(eval_table)
+    )
+    print(f"No Lab 4 results found — copied reference results from {reference}")
+
 eval_df = spark.table(eval_table)
 eval_count = eval_df.count()
-assert eval_count > 0, f"Evaluation table {eval_table} is empty — run Lab 4 first"
 
 models_present = [r["model"] for r in eval_df.select("model").distinct().collect()]
 print(f"Evaluation rows: {eval_count}")

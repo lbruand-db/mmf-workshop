@@ -13,7 +13,10 @@
 # MAGIC 3. Loads M5 data (`00_data_load`, raw files cached in the volume) and
 # MAGIC    foundation reference results (`01_precompute_foundation`) — skipped if
 # MAGIC    the tables already exist
-# MAGIC 4. Grants learners read-only access to the shared data
+# MAGIC 4. Runs the Lab 4 reference solution (`labs/04-execute/run_cpu`) once into
+# MAGIC    `{catalog}.{schema}_reference`, so lab catchups copy results instead of
+# MAGIC    re-running the forecast — skipped if already present
+# MAGIC 5. Grants learners read-only access to the shared data and reference results
 # MAGIC
 # MAGIC Safe to re-run.
 
@@ -36,6 +39,7 @@ allow_user_schemas = dbutils.widgets.get("allow_user_schemas") == "true"
 force_reload = dbutils.widgets.get("force_reload") == "true"
 
 source = f"{catalog}.{schema}"
+reference = f"{catalog}.{schema}_reference"
 assets_dir = f"/Volumes/{catalog}/{schema}/assets"
 
 # COMMAND ----------
@@ -149,6 +153,32 @@ else:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### Pre-compute reference Lab 4 results
+# MAGIC
+# MAGIC Runs the reference solution as a "reference learner" writing to
+# MAGIC `{reference}`. Takes ~5–10 min on 100 series.
+
+# COMMAND ----------
+
+if force_reload or not all(
+    spark.catalog.tableExists(f"{reference}.{t}") for t in ["m5_evaluation_output", "m5_scoring_output"]
+):
+    spark.sql(f"DROP SCHEMA IF EXISTS {reference} CASCADE")
+    result = dbutils.notebook.run("../labs/04-execute/run_cpu", 7200, {
+        "catalog": catalog,
+        "source_schema": schema,
+        "user_catalog": catalog,
+        "user_schema": f"{schema}_reference",
+        "n_series": "100",
+        "run_id": "reference",
+    })
+    print(f"run_cpu: {result}")
+else:
+    print(f"Reference Lab 4 results already present in {reference} — skipping")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### Grant learners read-only access
 # MAGIC
 # MAGIC Learners write to their own Vocareum managed catalog, so they only need to
@@ -160,6 +190,7 @@ else:
 grants = [
     f"GRANT USE CATALOG ON CATALOG {catalog} TO `{learner_group}`",
     f"GRANT USE SCHEMA, SELECT, READ VOLUME ON SCHEMA {source} TO `{learner_group}`",
+    f"GRANT USE SCHEMA, SELECT ON SCHEMA {reference} TO `{learner_group}`",
 ]
 if allow_user_schemas:
     grants.append(f"GRANT CREATE SCHEMA ON CATALOG {catalog} TO `{learner_group}`")
@@ -171,4 +202,4 @@ for g in grants:
 # COMMAND ----------
 
 import json
-dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "source": source, "mmf_ref": mmf_ref, "skill_files": len(staged)}))
+dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "source": source, "reference": reference, "mmf_ref": mmf_ref, "skill_files": len(staged)}))

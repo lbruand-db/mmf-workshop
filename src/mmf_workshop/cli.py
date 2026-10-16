@@ -12,9 +12,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 NOTEBOOK_DIRS = ["setup", "labs"]
 NOTEBOOK_HEADER = "# Databricks notebook source"
 DIST_DIR = REPO_ROOT / "dist"
-# One archive per directory: learners only get labs/; setup/ is run by admins
-# (Vocareum workspace_setup / user_setup).
-ARCHIVES = {d: f"mmf-workshop-{d}.dbc" for d in NOTEBOOK_DIRS}
+# Learners only get labs/. The admin archive (Vocareum workspace_setup /
+# user_setup) also carries labs/, because workspace_setup runs the Lab 4
+# reference solution through ../labs/04-execute/run_cpu.
+# name -> (directories, root that archive paths are relative to)
+ARCHIVES = {
+    "mmf-workshop-labs.dbc": (["labs"], REPO_ROOT / "labs"),
+    "mmf-workshop-setup.dbc": (["setup", "labs"], REPO_ROOT),
+}
 
 
 def find_notebooks(dirs: list[str] = NOTEBOOK_DIRS) -> list[Path]:
@@ -36,17 +41,17 @@ def validate_notebook(path: Path) -> bool:
 
 def cmd_build(args: argparse.Namespace) -> int:
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    for d, name in ARCHIVES.items():
-        rc = build_archive(d, DIST_DIR / name)
+    for name, (dirs, root) in ARCHIVES.items():
+        rc = build_archive(dirs, root, DIST_DIR / name)
         if rc:
             return rc
     return 0
 
 
-def build_archive(d: str, dbc_path: Path) -> int:
-    notebooks = find_notebooks([d])
+def build_archive(dirs: list[str], root: Path, dbc_path: Path) -> int:
+    notebooks = find_notebooks(dirs)
     if not notebooks:
-        print(f"ERROR: no notebooks found in {d}/", file=sys.stderr)
+        print(f"ERROR: no notebooks found in {dirs}", file=sys.stderr)
         return 1
 
     valid, invalid = [], []
@@ -62,14 +67,14 @@ def build_archive(d: str, dbc_path: Path) -> int:
             print(f"  {p.relative_to(REPO_ROOT)}", file=sys.stderr)
 
     if not valid:
-        print(f"ERROR: no valid Databricks notebooks found in {d}/", file=sys.stderr)
+        print(f"ERROR: no valid Databricks notebooks found in {dirs}", file=sys.stderr)
         return 1
 
-    # Paths are relative to the directory so relative %run / notebook.run
-    # references (e.g. ../_includes/config) resolve after import.
+    # Paths are relative to `root` so relative %run / notebook.run references
+    # (e.g. ../_includes/config) resolve after import.
     with zipfile.ZipFile(dbc_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for nb in valid:
-            arcname = str(nb.relative_to(REPO_ROOT / d))
+            arcname = str(nb.relative_to(root))
             zf.write(nb, arcname)
             print(f"  + {arcname}")
 

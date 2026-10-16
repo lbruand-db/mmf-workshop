@@ -7,7 +7,8 @@
 # MAGIC
 # MAGIC | Variable | Meaning | Default |
 # MAGIC |----------|---------|---------|
-# MAGIC | `catalog`, `source_schema` | Shared, read-only M5 data | `mmf`, `m5` |
+# MAGIC | `catalog`, `source_schema` | Shared, read-only M5 data (`source`) | `mmf`, `m5` |
+# MAGIC | — | Shared, read-only reference results (`reference`) used by catchups | `mmf.m5_reference` |
 # MAGIC | `user_catalog`, `user_schema` | Learner outputs (`out` = `user_catalog.user_schema`) | see below |
 # MAGIC
 # MAGIC **Output location:**
@@ -52,6 +53,7 @@ if not user_schema:
     user_schema = _identifier(user_email.split("@")[0])
 
 source = f"{catalog}.{source_schema}"
+reference = f"{catalog}.{source_schema}_reference"
 out = f"{user_catalog}.{user_schema}"
 
 print(f"Shared data (read): {source}")

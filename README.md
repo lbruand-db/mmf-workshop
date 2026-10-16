@@ -37,8 +37,9 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   ├── catchup.py        # Copy training data to user schema
     │   └── checkpoint.py
     ├── 04-execute/
-    │   ├── catchup.py        # Run CPU models (5 local + LightGBM)
-    │   ├── catchup_foundation.py  # Run foundation models (GPU)
+    │   ├── catchup.py        # Copy reference forecast results (seconds)
+    │   ├── run_cpu.py        # Reference solution: run 5 local + LightGBM (~5–10 min)
+    │   ├── run_foundation.py # Run foundation models (GPU, instructor-led only)
     │   └── checkpoint.py
     └── 05-evaluate/
         ├── catchup.py        # Best-model selection + evaluation summary
@@ -59,7 +60,7 @@ Override with the `user_catalog` / `user_schema` widgets (job parameters). Learn
 ## Lab independence
 
 Every lab can be entered cold. Each lab directory contains:
-- **`catchup.py`** — Bootstrap notebook that produces all expected outputs. Run this to skip to any lab without completing prior ones.
+- **`catchup.py`** — Bootstrap notebook that produces all expected outputs in seconds, by copying pre-computed reference results from `mmf.m5_reference`. Run this to skip to any lab without completing prior ones.
 - **`checkpoint.py`** — PASS/FAIL validation that verifies the lab's outputs exist and are correct.
 
 ## Setup (instructor / admin)
@@ -81,7 +82,8 @@ Run once per workspace. It:
    | `m5_static_features` | Item/store metadata |
    | `reference_evaluation_output` | Chronos-Bolt-Small results on CPU (100 series × 2 backtest windows) — needed because Vocareum has no GPU. Lab 5 merges them with participant results |
 
-4. Grants `learner_group` (default `account users`) read-only access to `mmf.m5`. For an instructor-led workshop set `allow_user_schemas=true`, so participants can create their `mmf.{user}` schema.
+4. Runs the Lab 4 reference solution (`labs/04-execute/run_cpu`, 100 series) into `mmf.m5_reference`, which the catchups copy from. Skipped if present.
+5. Grants `learner_group` (default `account users`) read-only access to `mmf.m5` and `mmf.m5_reference`. For an instructor-led workshop set `allow_user_schemas=true`, so participants can create their `mmf.{user}` schema.
 
 ### 2. User setup — `setup/user_setup.py`
 
@@ -89,7 +91,7 @@ Run once per learner, with `username` set to their email (comma-separated for se
 
 ### Packaging
 
-`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.dbc` (learner content) and `mmf-workshop-setup.dbc` (admin setup). Learners never receive the setup notebooks.
+`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.dbc` (learner content) and `mmf-workshop-setup.dbc` (admin setup, plus `labs/` so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
 
 ## Running the labs
 
@@ -102,10 +104,10 @@ Run once per learner, with `username` set to their email (comma-separated for se
 ### As a test (serverless jobs)
 
 ```bash
-# Lab 4 — CPU forecast (100 series, ~10 min)
+# Lab 4 — CPU forecast, reference solution (100 series, ~10 min)
 databricks jobs submit --json '{
   "tasks": [{"task_key": "main",
-    "notebook_task": {"notebook_path": "/path/to/labs/04-execute/catchup",
+    "notebook_task": {"notebook_path": "/path/to/labs/04-execute/run_cpu",
       "base_parameters": {"catalog": "mmf", "user_schema": "u_test",
         "source_schema": "m5", "n_series": "100"}},
     "environment_key": "env"}],
