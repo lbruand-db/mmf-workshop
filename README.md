@@ -32,10 +32,13 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   └── scripts/python/mmf_lab_end.py  # Lab-end reaper for learner jobs/clusters/experiments
 └── labs/Source/en_us/        # Course layout — see SPECS/RESTRUCTURE.md
     ├── notebooks/            # Learner course (packaged as mmf-workshop-labs.zip)
+    │   ├── AGENDA.py                 # Landing notebook: modules and lesson links
+    │   ├── Version Info.py           # Version + build date (filled by the build), dataset attributions
     │   ├── Includes/
     │   │   ├── _common.py            # Read/write locations + helpers (run by every Classroom-Setup)
     │   │   ├── _checks.py            # "Check your work" report
-    │   │   └── Classroom-Setup-x.y.py  # Puts each lesson's inputs in place (enter any lesson cold)
+    │   │   ├── Classroom-Setup-x.y.py  # Puts each lesson's inputs in place (enter any lesson cold)
+    │   │   └── Print-Dataset-Copyrights.py
     │   ├── M01 - Many-Model Forecasting Foundations/
     │   │   └── 1.2 Demo - Genie Code and the MMF Skill.py
     │   ├── M02 - Preparing Many Series/

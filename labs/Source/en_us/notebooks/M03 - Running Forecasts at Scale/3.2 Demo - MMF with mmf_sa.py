@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "4"
+# ///
 # MAGIC %md
 # MAGIC # 3.2 Demo — MMF with mmf_sa
 # MAGIC
@@ -13,6 +17,23 @@
 # MAGIC `mmf_sa` (~5–10 min on 100 series). It is also the **reference solution**:
 # MAGIC `setup/workspace_setup` runs it once into `mmf.m5_reference`, which 3.3 and
 # MAGIC 4.1 copy from when you skip ahead.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Before you start: compute
+# MAGIC
+# MAGIC Select **Serverless** in the compute drop-down at the top right of the notebook before running any cell.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Learning objectives
+# MAGIC
+# MAGIC By the end of this lesson you can:
+# MAGIC - Call `run_forecast` for local statistical models and a global ML model.
+# MAGIC - Explain `prediction_length`, `backtest_length` and `stride`.
+# MAGIC - Find the results in the evaluation and scoring tables, and in MLflow.
 
 # COMMAND ----------
 
@@ -176,3 +197,10 @@ dbutils.notebook.exit(json.dumps({
     "eval_rows": eval_count,
     "models": model_names,
 }))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Summary
+# MAGIC
+# MAGIC You ran the full CPU model set directly with `mmf_sa`, and know where its results land. **Next:** *3.3 Lab — Provision and Execute with Genie Code*, where Genie Code builds the same pipeline for you.

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import datetime
+import re
 import subprocess
 import sys
 import zipfile
@@ -25,6 +27,27 @@ ARCHIVES = {
     "mmf-workshop-labs.zip": ([COURSE_NOTEBOOKS], REPO_ROOT / COURSE_NOTEBOOKS),
     "mmf-workshop-setup.zip": (["setup", COURSE_NOTEBOOKS], REPO_ROOT),
 }
+
+
+COURSE_NAME = "Many-Model Forecasting with Genie Code"
+
+
+def project_version() -> str:
+    match = re.search(r'^version\s*=\s*"([^"]+)"', (REPO_ROOT / "pyproject.toml").read_text(), re.M)
+    return match.group(1) if match else "unknown"
+
+
+def render(nb: Path) -> str:
+    """Notebook source as packaged: fills the {{...}} placeholders in Version Info."""
+    text = nb.read_text()
+    if nb.name == "Version Info.py":
+        for key, value in {
+            "course_name": COURSE_NAME,
+            "version_number": project_version(),
+            "built_on": datetime.date.today().isoformat(),
+        }.items():
+            text = text.replace("{{" + key + "}}", value)
+    return text
 
 
 def find_notebooks(dirs: list[str] = NOTEBOOK_DIRS) -> list[Path]:
@@ -96,11 +119,11 @@ def build_archive(dirs: list[str], root: Path, dbc_path: Path) -> int:
         return 1
 
     # Paths are relative to `root` so relative %run / notebook.run references
-    # (e.g. ../_includes/config) resolve after import.
+    # (e.g. ../Includes/_common) resolve after import.
     with zipfile.ZipFile(dbc_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for nb in valid:
             arcname = str(nb.relative_to(root))
-            zf.write(nb, arcname)
+            zf.writestr(arcname, render(nb))
             print(f"  + {arcname}")
 
     print(f"Built {dbc_path} ({len(valid)} notebooks, {dbc_path.stat().st_size} bytes)\n")

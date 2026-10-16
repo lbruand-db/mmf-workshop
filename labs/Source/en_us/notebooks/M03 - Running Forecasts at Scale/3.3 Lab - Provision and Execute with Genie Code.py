@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "4"
+# ///
 # MAGIC %md
 # MAGIC # 3.3 Lab — Provision and Execute with Genie Code
 # MAGIC
@@ -9,6 +13,23 @@
 # MAGIC - **Parallel execution**: MMF spreads model fits across Spark.
 # MAGIC - **Model diversity**: statistical models and LightGBM run through the same interface and are compared on equal footing.
 # MAGIC - **MLflow tracking**: every run is logged with parameters, metrics and artifacts.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Before you start: compute
+# MAGIC
+# MAGIC Select **Serverless** in the compute drop-down at the top right of the notebook before running any cell.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Learning objectives
+# MAGIC
+# MAGIC By the end of this lesson you can:
+# MAGIC - Use MMF Skills 3 and 4 to choose models and compute, and launch the forecast jobs.
+# MAGIC - Monitor the runs in MLflow while they execute.
+# MAGIC - Validate the evaluation and scoring outputs.
 
 # COMMAND ----------
 
@@ -85,3 +106,10 @@ except Exception as e:
     checks.append(("Scoring table exists", False, str(e)))
 
 finish("3.3", checks)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Summary
+# MAGIC
+# MAGIC Genie Code turned your choices into parallel forecast jobs, and their results are in your schema. **Next:** *4.1 Lab — Best Model per Series*.

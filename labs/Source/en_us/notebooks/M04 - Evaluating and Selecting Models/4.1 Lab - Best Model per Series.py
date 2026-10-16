@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "4"
+# ///
 # MAGIC %md
 # MAGIC # 4.1 Lab — Best Model per Series
 # MAGIC
@@ -12,6 +16,23 @@
 # MAGIC
 # MAGIC Best-model selection averages the metric over backtest windows and breaks ties
 # MAGIC in favour of simpler model classes (cheaper to run in production).
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Before you start: compute
+# MAGIC
+# MAGIC Select **Serverless** in the compute drop-down at the top right of the notebook before running any cell.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Learning objectives
+# MAGIC
+# MAGIC By the end of this lesson you can:
+# MAGIC - Select the best model per series from backtest results.
+# MAGIC - Build a leaderboard of model wins.
+# MAGIC - Compare statistical, ML and foundation models, and spot the series every model struggles with.
 
 # COMMAND ----------
 
@@ -232,3 +253,10 @@ except Exception as e:
     checks.append(("Evaluation summary exists", False, str(e)))
 
 finish("4.1", checks)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Summary
+# MAGIC
+# MAGIC You have a best model per series and a leaderboard across model classes — the basis for deciding what to deploy for each product. This is the end of the core course.

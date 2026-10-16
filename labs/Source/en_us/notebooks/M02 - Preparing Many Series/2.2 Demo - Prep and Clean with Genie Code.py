@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "4"
+# ///
 # MAGIC %md
 # MAGIC # 2.2 Demo — Prep and Clean with Genie Code
 # MAGIC
@@ -8,6 +12,23 @@
 # MAGIC - **MMF Skill 1 (prep and clean)** guides loading, inspecting and validating time series through Genie Code.
 # MAGIC - **Delta Lake** tables are transactional and keep history — if you make a mistake, you can roll back.
 # MAGIC - **Serverless compute**: no cluster to manage; cells run right away.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Before you start: compute
+# MAGIC
+# MAGIC Select **Serverless** in the compute drop-down at the top right of the notebook before running any cell.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Learning objectives
+# MAGIC
+# MAGIC By the end of this lesson you can:
+# MAGIC - Drive MMF Skill 1 from Genie Code to produce a training table.
+# MAGIC - Answer the skill's decision points (location, source table, frequency, regressors).
+# MAGIC - Recognise intermittent series and why they matter for model choice.
 
 # COMMAND ----------
 
@@ -88,3 +109,10 @@ if n > 0:
     checks.append(("Series count > 0", series > 0, f"{series} series"))
 
 finish("2.2", checks)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Summary
+# MAGIC
+# MAGIC You have `m5_train_data` in your schema and a feel for the data — including how many series are mostly zeros. **Next:** *3.2 Demo — MMF with mmf_sa*.

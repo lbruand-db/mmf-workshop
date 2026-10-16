@@ -16,7 +16,7 @@ By the end of this lab you can:
 
 ## How this lab works
 
-- Your workspace opens on the **`mmf-workshop`** folder: one folder per module, one notebook per lesson.
+- Your workspace opens on **`AGENDA`**, in the **`mmf-workshop`** folder: it links to every lesson (one folder per module, one notebook per lesson).
 - **Your outputs** go to your personal catalog (named after your username), in schema **`mmf`**. Every lesson prints the exact location. Nothing you do affects other learners.
 - **Shared data** is read-only in `mmf.m5`.
 - Each lesson starts with a **Classroom setup** cell. Run it first: it puts the lesson's inputs in place, so you can start any lesson without doing the previous ones.

@@ -1,6 +1,6 @@
 # Restructure — course layout modelled on a reference Databricks course
 
-> Status: phases 0–2 done (2026-10-16); phases 3–6 are the backlog below.
+> Status: phases 0–2 done (2026-10-16); phases 3–6 are the backlog below. Not yet run on a workspace (no CLI profile available) — phase 6 covers that.
 
 ## Context
 

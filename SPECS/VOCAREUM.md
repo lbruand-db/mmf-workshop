@@ -66,7 +66,7 @@ A JSON file in the course folder ending in `.cfg`. A *DBC object* is `{src, entr
 
 | Key | Runs as | Receives | MMF use |
 |-----|---------|----------|---------|
-| `content` | — | — | `mmf-workshop-labs.zip`, opens lesson 1.2 (AGENDA from phase 2 of `RESTRUCTURE.md`) |
+| `content` | — | — | `mmf-workshop-labs.zip`, opens `AGENDA` |
 | `workspace_setup` | admin (workspace + metastore) | `host`, `token` | `setup/workspace_setup` |
 | `user_setup` | admin | `host`, `token`, `username` | `setup/user_setup` |
 | `autograde` | admin | `host`, `token`, `username`, `table` | Not used — the course is not graded |

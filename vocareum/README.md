@@ -60,12 +60,12 @@ In **Configure Workspace → Files** (do **not** save an image — `/voc` is alr
 |------|-------------------|------|
 | Workspace created | `setup/workspace_setup` (admin cluster) | Shared `mmf.m5` data, foundation and Lab 4 reference results, skill bundle and `mmf_sa` wheel staged in `/Volumes/mmf/m5/assets`, learner grants. Takes about 30–45 min the first time |
 | Learner added | `setup/user_setup` | Installs the MMF skill and `.assistant_instructions.md` in the learner's home folder |
-| Lab start | `content` | Imports the course notebooks as `mmf-workshop/`, opens lesson 1.2 |
+| Lab start | `content` | Imports the course notebooks as `mmf-workshop/`, opens `AGENDA` |
 | Lab end | `mmf_lab_end.reap_user` | Cancels runs and deletes jobs, clusters and MLflow experiments the learner created. Vocareum drops the managed catalog itself |
 
 ## 5. Test
 
-1. Open **Student View**. Lab 0 should open, and Genie Code should list the MMF skill.
+1. Open **Student View**. `AGENDA` should open, its lesson links should work, and in lesson 1.2 Genie Code should list the MMF skill.
 2. Open each lesson cold (in any order), run its Classroom setup and *Short on time?* cells, then *Check your work*: all should PASS.
 3. Click **End Lab**, then check from an admin session that the learner's jobs, clusters and experiments are gone.
 

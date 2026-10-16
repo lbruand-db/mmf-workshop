@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "4"
+# ///
 # MAGIC %md
 # MAGIC # 1.2 Demo — Genie Code and the MMF Skill
 # MAGIC
@@ -7,6 +11,23 @@
 # MAGIC **What Databricks brings**
 # MAGIC - **Unity Catalog** gives you your own output location, with shared read-only access to the M5 data — no copies, no permission setup.
 # MAGIC - **Genie Code skills** let you drive the MMF pipeline in natural language instead of writing boilerplate code.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Before you start: compute
+# MAGIC
+# MAGIC Select **Serverless** in the compute drop-down at the top right of the notebook before running any cell.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Learning objectives
+# MAGIC
+# MAGIC By the end of this lesson you can:
+# MAGIC - Check that your output location exists and the shared M5 data is readable.
+# MAGIC - Confirm Genie Code can see the MMF skill.
+# MAGIC - Explain where your outputs go and why they don't affect other participants.
 
 # COMMAND ----------
 
@@ -86,3 +107,10 @@ for t in ["daily_train_100", "daily_train_1000"]:
         checks.append((f"Shared data {t}", False, str(e)))
 
 finish("1.2", checks)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Summary
+# MAGIC
+# MAGIC Your environment is ready: you have an output location, read access to the shared M5 data, and the MMF skill in Genie Code. **Next:** *2.2 Demo — Prep and Clean with Genie Code*.
