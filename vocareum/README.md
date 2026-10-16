@@ -1,14 +1,8 @@
 # Vocareum packaging
 
-How to publish the MMF workshop as a Vocareum course. See go/vocareum-lab-development and go/vocareum-lab-guidelines for the platform docs.
+How to publish the MMF workshop as a Vocareum course with the **Vocareum Course Vending Machine** app (the Databricks app that creates Vocareum courses; its URL is in `SPECS/NOTES.md`). Platform docs: go/field-driven-enablement-labs, go/vocareum-lab-guidelines.
 
-```
-vocareum/
-├── courseware/mmf-workshop.cfg     # → /voc/private/courseware/
-└── scripts/python/mmf_lab_end.py   # → /scripts/python/, called from lab_end.py
-```
-
-The learner side-pane README lives with the course: `labs/Source/en_us/voc/docs/README.md` → `/voc/docs/README.md`.
+The app creates the course from a form and generates its `config.json` (**View config.json** at the top of the form). It has no per-user setup hook and no lab-end hook — see [Known gaps](#known-gaps).
 
 ## 1. Build
 
@@ -18,60 +12,72 @@ uv run mmf-workshop build
 
 This writes to `dist/`:
 
-| Archive | Contents | Used by `.cfg` key |
-|---------|----------|--------------------|
-| `mmf-workshop-labs.zip` | `labs/Source/en_us/notebooks/` — learner course | `content` |
-| `mmf-workshop-setup.zip` | `setup/` + course notebooks — admin notebooks | `workspace_setup`, `user_setup` |
+| Archive | Contents | Form field |
+|---------|----------|------------|
+| `mmf-workshop-labs.zip` | `labs/Source/en_us/notebooks/` — the learner course | Lab Content |
+| `mmf-workshop-setup.zip` | `setup/` + the course notebooks — admin setup | Workspace setup notebook |
 
-## 2. Course and part settings
+## 2. Create the course
 
-Clone a course template in the **GenAI** org (serverless enabled), with **Clone by Copy**. Then set:
+In the app, click **New Course** and fill in:
 
-| Setting | Value | Why |
-|---------|-------|-----|
-| Lab Type | Databricks | |
-| LTI | Off for direct enrolment, on for Docebo | |
-| Users per workspace | As high as product limits allow | Shared data and reference results are per workspace; learners are isolated by managed catalog |
-| Session Length | 240 min | Course is about 2 h of learner time |
-| Budget (total time) | ≤ 720 min | At most 3× the session length |
-| End Lab Behavior | **Terminate** resources | Otherwise `lab_end` doesn't run and learner jobs/clusters keep running |
-| Interface | Timer on, Readme button on | Shows `docs/README.md` |
-| Grading | Off | The course is not graded; each lesson's *Check your work* is learner feedback |
-| Course Feedback | On | |
+### Basic settings
 
-## 3. Upload
+| Field | Value | Notes |
+|-------|-------|-------|
+| Course Name | e.g. `MMF Workshop – test` | Must be unique in the Vocareum account |
+| Max Users per Workspace | `50` | Shared data and reference results are loaded once per workspace; learners are isolated by their own schema |
+| Lab Time | `4 hours` | The course is about 2 h of learner time |
+| Allow lab to be stopped | **Off** | No lab-end hook cleans up learner jobs/clusters, so let the session end and be cleaned up |
+| Vocareum Org | **Field Driven Enablement Labs** | Can't be moved to another org later |
+| Timezone, Start / End Date | Your test window | Student access closes at the end date |
+| Template | **Data Science** | Warehouse plus catalog/schema management. Avoid the *Genie Code* template for now: it adds the *Consumer* entitlement ("consumer-only access"), which may block notebooks and jobs. Genie Code itself works without it — confirm in the test |
 
-In **Configure Workspace → Files** (do **not** save an image — `/voc` is already persisted):
+### Advanced settings
 
-1. `/voc/private/courseware/`: `dist/mmf-workshop-labs.zip`, `dist/mmf-workshop-setup.zip`, `vocareum/courseware/mmf-workshop.cfg`.
-2. `/voc/docs/README.md`: `labs/Source/en_us/voc/docs/README.md`.
-3. `/scripts/python/`: `vocareum/scripts/python/mmf_lab_end.py`. In the template's `lab_end.py`, call:
+| Section | Field | Value |
+|---------|-------|-------|
+| Lab Content | Mode | **Prepared archive / notebook** |
+| | File | `dist/mmf-workshop-labs.zip` |
+| | Entry Notebook | `AGENDA` |
+| | Top-Level Folder Name | blank (defaults to the file name) |
+| Workspace setup | Enable workspace setup notebook | **On** |
+| | Source | Upload `dist/mmf-workshop-setup.zip` |
+| | Entry | `setup/workspace_setup` |
+| | Timeout (minutes) | **`120`** — the default 20 is too short: the first run loads M5, pre-computes Chronos-Bolt and runs the reference forecast (~30–45 min). It always runs as a serverless job |
+| User Resources | User Catalog & Schema | Default: **user-owned schema in dbacademy catalog**. `Includes/_common` reads the learner's location from the platform's `ops.meta` table |
+| | Manage Schema | On |
+| | Auto-create personal cluster | Off — lessons run on serverless |
+| | Auto-create SQL warehouse | Template default (not used by the lessons) |
+| Metastore | Custom Catalog Name, new metastore per workspace, system schemas | Defaults |
+| User Permissions | Enable Create Catalog, Manage Catalog, Secondary, PATs | Template defaults; none are needed by the lessons |
+| Data Sideload | — | Empty (`workspace_setup` loads the data) |
 
-   ```python
-   from mmf_lab_end import reap_user
-   reap_user(host, token, username)
-   ```
+Before clicking **Create Course**, open **View config.json** and save it as `vocareum/config.json` in this repo, so the settings are versioned.
 
-   `host`, `token` and `username` come from however the template's `lab_end.py` receives them.
+## 3. What runs when
 
-## 4. What runs when
+| Event | What runs | Does |
+|-------|-----------|------|
+| Workspace provisioned | `setup/workspace_setup` (serverless job, once per workspace) | Shared `mmf.m5` data, foundation and reference forecast results (`mmf.m5_reference`), skill bundle and `mmf_sa` wheel staged in `/Volumes/mmf/m5/assets`, read-only grants to `account users` |
+| Lab start | Lab Content | Imports the course as `mmf-workshop-labs/` and opens `AGENDA` |
+| Each lesson | `Includes/Classroom-Setup-x.y` | Prints the learner's output location and puts the lesson's inputs in place |
+| Lab Time reached | Vocareum | Ends the session |
 
-| Hook | Notebook / script | Does |
-|------|-------------------|------|
-| Workspace created | `setup/workspace_setup` (admin cluster) | Shared `mmf.m5` data, foundation and Lab 4 reference results, skill bundle and `mmf_sa` wheel staged in `/Volumes/mmf/m5/assets`, learner grants. Takes about 30–45 min the first time |
-| Learner added | `setup/user_setup` | Installs the MMF skill and `.assistant_instructions.md` in the learner's home folder |
-| Lab start | `content` | Imports the course notebooks as `mmf-workshop/`, opens `AGENDA` |
-| Lab end | `mmf_lab_end.reap_user` | Cancels runs and deletes jobs, clusters and MLflow experiments the learner created. Vocareum drops the managed catalog itself |
+## 4. Test
 
-## 5. Test
+1. Create the course and wait for the workspace setup job to finish (check the job run in the workspace if the lab doesn't open).
+2. Install the MMF skill for your test student (see [Known gaps](#known-gaps)).
+3. Open the lab as a student. `AGENDA` should open and its lesson links should work. In lesson 1.2, Genie Code should list the MMF skill, and the setup cell should print an output location from *lab platform metadata*.
+4. Open each lesson cold (in any order), run its Classroom setup and *Short on time?* cells, then *Check your work*: all should PASS.
+5. Run one Genie Code lesson end to end (2.2 is the quickest) to check the agent flow.
 
-1. Open **Student View**. `AGENDA` should open, its lesson links should work, and in lesson 1.2 Genie Code should list the MMF skill.
-2. Open each lesson cold (in any order), run its Classroom setup and *Short on time?* cells, then *Check your work*: all should PASS.
-3. Click **End Lab**, then check from an admin session that the learner's jobs, clusters and experiments are gone.
+## Known gaps
 
-## To verify on the first deployment
+- **MMF skill install (blocks Genie Code):** the app has no per-user hook, so `setup/user_setup` doesn't run. Until the install moves into the lessons' Classroom setup, run `setup/user_setup` by hand as a workspace admin, with `username` set to the student's email (comma-separated for several).
+- **No lab-end cleanup:** jobs and clusters a learner creates through Genie Code (Skills 3–4) aren't deleted when the lab ends. `vocareum/scripts/python/mmf_lab_end.py` exists for platforms with a lab-end hook; here, check the workspace for leftovers after testing.
+- **To verify on the first run:** that the `ops.meta` keys are `catalog_name` / `schema_name` / `username` (otherwise outputs fall back to `mmf.{user}`); that `account users` covers the students; that the serverless setup job can reach GitHub and PyPI to stage the skill bundle and build the wheel; and that the `environment_version = "4"` notebook header is honoured.
 
-- **Admin cluster** (`admin_cluster_config`): `18.0.x-cpu-ml-scala2.13` is assumed from the MMF requirement (DBR 18 ML or later), and the cluster must be Unity Catalog-enabled for `/Volumes`. Adjust to what the Vocareum admin cluster supports.
-- **Archive format:** the archives are zips of source-format notebooks, the same format a folder export produces. Check that Vocareum's `src` import accepts them.
-- **`learner_group`:** `workspace_setup` grants read access to `account users`. Check that this group covers Vocareum learners.
-- **Genie Code** must be enabled on the workspace. If it isn't on by default for the org, request it at go/lpt-general-request.
+## Appendix: manual course configuration
+
+Courses cloned and configured by hand (go/vocareum-lab-development) use a `.cfg` file instead of the app. `vocareum/courseware/mmf-workshop.cfg` is that configuration (content, `workspace_setup`, `user_setup`, admin cluster). Upload it with both archives to `/voc/private/courseware/`, the learner README `labs/Source/en_us/voc/docs/README.md` to `/voc/docs/README.md`, and `vocareum/scripts/python/mmf_lab_end.py` to `/scripts/python/`, called from the template's `lab_end.py`. Set End Lab Behavior to **Terminate**, and don't save an image.
