@@ -13,8 +13,8 @@
 # MAGIC 3. Loads M5 data (`00_data_load`, raw files cached in the volume) and
 # MAGIC    foundation reference results (`01_precompute_foundation`) — skipped if
 # MAGIC    the tables already exist
-# MAGIC 4. Runs the Lab 4 reference solution (`labs/04-execute/run_cpu`) once into
-# MAGIC    `{catalog}.{schema}_reference`, so lab catchups copy results instead of
+# MAGIC 4. Runs the reference solution (lesson *3.2 Demo — MMF with mmf_sa*) once into
+# MAGIC    `{catalog}.{schema}_reference`, so lessons can copy results instead of
 # MAGIC    re-running the forecast — skipped if already present
 # MAGIC 5. Grants learners read-only access to the shared data and reference results
 # MAGIC
@@ -164,7 +164,7 @@ if force_reload or not all(
     spark.catalog.tableExists(f"{reference}.{t}") for t in ["m5_evaluation_output", "m5_scoring_output"]
 ):
     spark.sql(f"DROP SCHEMA IF EXISTS {reference} CASCADE")
-    result = dbutils.notebook.run("../labs/04-execute/run_cpu", 7200, {
+    result = dbutils.notebook.run("../labs/Source/en_us/notebooks/M03 - Running Forecasts at Scale/3.2 Demo - MMF with mmf_sa", 7200, {
         "catalog": catalog,
         "source_schema": schema,
         "user_catalog": catalog,
@@ -172,7 +172,7 @@ if force_reload or not all(
         "n_series": "100",
         "run_id": "reference",
     })
-    print(f"run_cpu: {result}")
+    print(f"3.2 Demo - MMF with mmf_sa: {result}")
 else:
     print(f"Reference Lab 4 results already present in {reference} — skipping")
 

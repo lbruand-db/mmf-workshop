@@ -1,15 +1,15 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 4 — Run Foundation Model Forecast (GPU, instructor-led only)
+# MAGIC # Foundation Models on GPU (instructor-led only)
 # MAGIC
 # MAGIC Runs Chronos-2 on a reduced dataset (100 series) with a shorter backtest
 # MAGIC window for fast iteration. Requires a GPU cluster (`g4dn.xlarge` / T4)
 # MAGIC or serverless GPU (AI Runtime with A10).
 # MAGIC
 # MAGIC Results append to the same evaluation/scoring tables as the CPU notebook,
-# MAGIC so Lab 5 sees all model classes together.
+# MAGIC so lesson 4.1 sees all model classes together.
 # MAGIC
-# MAGIC **Not for Vocareum** (no GPUs there): Lab 5 merges pre-computed
+# MAGIC **Not for Vocareum** (no GPUs there, and not in the learner zip): 4.1 merges pre-computed
 # MAGIC foundation results instead.
 
 # COMMAND ----------
@@ -28,7 +28,7 @@ logging.getLogger("mlflow.tracking.context.registry").setLevel(logging.ERROR)
 
 # COMMAND ----------
 
-# MAGIC %run ../_includes/config
+# MAGIC %run ../notebooks/Includes/_common
 
 # COMMAND ----------
 
@@ -47,7 +47,7 @@ print(f"Run ID: {run_id}")
 
 # COMMAND ----------
 
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
+ensure_schema()
 
 # COMMAND ----------
 

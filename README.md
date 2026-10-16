@@ -4,7 +4,7 @@ Hands-on workshop on [Many-Model Forecasting (MMF)](https://github.com/databrick
 
 ## Overview
 
-Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF skill** to forecast ~100–1,000 retail time series end-to-end: data preparation, profiling, model execution, evaluation, and deployment. The skill guides each step via natural language prompts with built-in checkpoints.
+Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF skill** to forecast ~100–1,000 retail time series end-to-end: data preparation, profiling, model execution, evaluation, and deployment. The skill guides each step via natural language prompts with built-in checks.
 
 **Dataset:** [M5 Forecasting Competition](https://www.kaggle.com/c/m5-forecasting-accuracy) — Walmart daily sales, sampled to 100 or 1,000 series.
 
@@ -29,44 +29,44 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   └── VERSIONS.md           # Pinned upstream versions
 ├── vocareum/                 # Vocareum course packaging — see vocareum/README.md
 │   ├── courseware/mmf-workshop.cfg  # Course config (content, setup hooks, admin cluster)
-│   ├── docs/README.md        # Learner instructions (Vocareum side pane)
 │   └── scripts/python/mmf_lab_end.py  # Lab-end reaper for learner jobs/clusters/experiments
-└── labs/
-    ├── _includes/
-    │   ├── config.py         # Shared widgets + read/write locations (%run by every lab)
-    │   └── checks.py         # Checkpoint report + JSON exit (%run by every checkpoint)
-    ├── 00-setup/
-    │   ├── catchup.py        # Create user schema, verify data and skills
-    │   └── checkpoint.py     # PASS/FAIL validation
-    ├── 01-prep/
-    │   ├── catchup.py        # Copy training data to user schema
-    │   └── checkpoint.py
-    ├── 04-execute/
-    │   ├── catchup.py        # Copy reference forecast results (seconds)
-    │   ├── run_cpu.py        # Reference solution: run 5 local + LightGBM (~5–10 min)
-    │   ├── run_foundation.py # Run foundation models (GPU, instructor-led only)
-    │   └── checkpoint.py
-    └── 05-evaluate/
-        ├── catchup.py        # Best-model selection + evaluation summary
-        └── checkpoint.py
+└── labs/Source/en_us/        # Course layout — see SPECS/RESTRUCTURE.md
+    ├── notebooks/            # Learner course (packaged as mmf-workshop-labs.zip)
+    │   ├── Includes/
+    │   │   ├── _common.py            # Read/write locations + helpers (run by every Classroom-Setup)
+    │   │   ├── _checks.py            # "Check your work" report
+    │   │   └── Classroom-Setup-x.y.py  # Puts each lesson's inputs in place (enter any lesson cold)
+    │   ├── M01 - Many-Model Forecasting Foundations/
+    │   │   └── 1.2 Demo - Genie Code and the MMF Skill.py
+    │   ├── M02 - Preparing Many Series/
+    │   │   └── 2.2 Demo - Prep and Clean with Genie Code.py
+    │   ├── M03 - Running Forecasts at Scale/
+    │   │   ├── 3.2 Demo - MMF with mmf_sa.py              # Also the reference solution
+    │   │   └── 3.3 Lab - Provision and Execute with Genie Code.py
+    │   └── M04 - Evaluating and Selecting Models/
+    │       └── 4.1 Lab - Best Model per Series.py
+    ├── instructor/
+    │   └── Foundation Models on GPU.py   # Instructor-led only; not packaged
+    └── voc/docs/README.md    # Learner instructions (Vocareum side pane)
 ```
 
 ## Where outputs go
 
-Every lab notebook runs `labs/_includes/config` first, which prints the shared data location and the learner's output location:
+Every lesson's Classroom setup runs `Includes/_common`, which prints the shared data location and the learner's output location:
 
 | Environment | Reads from | Writes to |
 |-------------|-----------|-----------|
-| Vocareum | `mmf.m5` | `{managed_catalog}.mmf` — the per-user catalog Vocareum creates (e.g. `vocuser12345_vocareum_com`) and drops at lab end |
+| Vocareum | `mmf.m5` | The per-user location from the lab platform's `ops.meta` table when present; otherwise `{managed_catalog}.mmf`, the per-user catalog Vocareum creates (e.g. `vocuser12345_vocareum_com`) and drops at lab end |
 | Instructor-led workshop | `mmf.m5` | `mmf.{user}` — schema derived from the email |
 
 Override with the `user_catalog` / `user_schema` widgets (job parameters). Learner notebooks never create catalogs.
 
-## Lab independence
+## Lesson independence
 
-Every lab can be entered cold. Each lab directory contains:
-- **`catchup.py`** — Bootstrap notebook that produces all expected outputs in seconds, by copying pre-computed reference results from `mmf.m5_reference`. Run this to skip to any lab without completing prior ones.
-- **`checkpoint.py`** — PASS/FAIL validation that verifies the lab's outputs exist and are correct. Learner feedback only — the course is not graded.
+Every lesson can be entered cold:
+- **Classroom setup** (`%run ../Includes/Classroom-Setup-x.y`, first cell of each lesson) puts the lesson's inputs in place. If an earlier lesson wasn't done, it copies them from the shared data or the pre-computed reference results in `mmf.m5_reference`.
+- **Short on time?** cells, in lessons where Genie Code builds something, put that lesson's output in place in seconds.
+- **Check your work** (last section) prints PASS/FAIL for each expected output. Learner feedback only — the course is not graded.
 
 ## Setup (instructor / admin)
 
@@ -87,7 +87,7 @@ Run once per workspace. It:
    | `m5_static_features` | Item/store metadata |
    | `reference_evaluation_output` | Chronos-Bolt-Small results on CPU (100 series × 2 backtest windows) — needed because Vocareum has no GPU. Lab 5 merges them with participant results |
 
-4. Runs the Lab 4 reference solution (`labs/04-execute/run_cpu`, 100 series) into `mmf.m5_reference`, which the catchups copy from. Skipped if present.
+4. Runs the reference solution (lesson *3.2 Demo — MMF with mmf_sa*, 100 series) into `mmf.m5_reference`, which lessons copy from when entered cold. Skipped if present.
 5. Grants `learner_group` (default `account users`) read-only access to `mmf.m5` and `mmf.m5_reference`. For an instructor-led workshop set `allow_user_schemas=true`, so participants can create their `mmf.{user}` schema.
 
 ### 2. User setup — `setup/user_setup.py`
@@ -99,33 +99,33 @@ Run once per learner, with `username` set to their email (comma-separated for se
 See [`vocareum/README.md`](vocareum/README.md) for the Vocareum course settings, uploads and test plan.
 
 
-`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.zip` (learner content) and `mmf-workshop-setup.zip` (admin setup, plus `labs/` so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
+`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.zip` (learner content) and `mmf-workshop-setup.zip` (admin setup, plus the course notebooks so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
 
-## Running the labs
+## Running the lessons
 
 ### As a participant (with Genie Code)
 
-1. Open Genie Code in the Databricks workspace
-2. Follow the MMF skill prompts for each lab
-3. If stuck, run the lab's `catchup.py` to bootstrap
+1. Open a lesson and run its Classroom setup cell
+2. Follow the lesson's Genie Code steps
+3. If stuck, run the lesson's *Short on time?* cell
 
 ### As a test (serverless jobs)
 
 ```bash
-# Lab 4 — CPU forecast, reference solution (100 series, ~10 min)
+# 3.2 Demo — CPU forecast, reference solution (100 series, ~10 min)
 databricks jobs submit --json '{
   "tasks": [{"task_key": "main",
-    "notebook_task": {"notebook_path": "/path/to/labs/04-execute/run_cpu",
+    "notebook_task": {"notebook_path": "/path/to/mmf-workshop/M03 - Running Forecasts at Scale/3.2 Demo - MMF with mmf_sa",
       "base_parameters": {"catalog": "mmf", "user_schema": "u_test",
         "source_schema": "m5", "n_series": "100"}},
     "environment_key": "env"}],
   "environments": [{"environment_key": "env",
     "spec": {"client": "4", "dependencies": []}}]}'
 
-# Lab 5 — Evaluate (~2 min)
+# 4.1 Lab — Evaluate (~2 min)
 databricks jobs submit --json '{
   "tasks": [{"task_key": "main",
-    "notebook_task": {"notebook_path": "/path/to/labs/05-evaluate/catchup",
+    "notebook_task": {"notebook_path": "/path/to/mmf-workshop/M04 - Evaluating and Selecting Models/4.1 Lab - Best Model per Series",
       "base_parameters": {"catalog": "mmf", "user_schema": "u_test",
         "source_schema": "m5", "metric": "smape"}},
     "environment_key": "env"}],

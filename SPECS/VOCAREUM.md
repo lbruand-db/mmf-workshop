@@ -30,8 +30,8 @@ Databricks Field Engineering runs Vocareum labs as **Cloud Labs — Databricks**
 - Keep cost down (Vocareum, AWS and DBU costs): give learners the **minimum** compute and data size → 100 series by default, serverless.
 - Use shared resources through Unity Catalog → read-only `mmf.m5` and `mmf.m5_reference`.
 - Pre-create what isn't a learning objective → data, reference results and the skill install are all automated.
-- Include a `README.md` with objectives, instructions and resources → `vocareum/docs/README.md`.
-- Shortcut slow tasks "like a cooking show" → every lab `catchup` copies pre-computed results in seconds.
+- Include a `README.md` with objectives, instructions and resources → `labs/Source/en_us/voc/docs/README.md`.
+- Shortcut slow tasks "like a cooking show" → each lesson's Classroom setup and *Short on time?* cells copy pre-computed results in seconds.
 - Identify quotas and limits early (Jobs, serverless, Genie Code concurrency per workspace).
 - Set the session length thoughtfully, and the budget to **at most 3×** the session length.
 - Automate setup **and** termination: `lab_end` must reap what the lab creates.
@@ -66,7 +66,7 @@ A JSON file in the course folder ending in `.cfg`. A *DBC object* is `{src, entr
 
 | Key | Runs as | Receives | MMF use |
 |-----|---------|----------|---------|
-| `content` | — | — | `mmf-workshop-labs.zip`, opens `00-setup/catchup` |
+| `content` | — | — | `mmf-workshop-labs.zip`, opens lesson 1.2 (AGENDA from phase 2 of `RESTRUCTURE.md`) |
 | `workspace_setup` | admin (workspace + metastore) | `host`, `token` | `setup/workspace_setup` |
 | `user_setup` | admin | `host`, `token`, `username` | `setup/user_setup` |
 | `autograde` | admin | `host`, `token`, `username`, `table` | Not used — the course is not graded |
@@ -82,7 +82,7 @@ A `dbfs/` subfolder of the course folder is copied into DBFS; `patches/` holds h
 |----------------|-----------|--------|
 | Workspace created | `setup/workspace_setup` | `mmf.m5` data, foundation reference results, Lab 4 reference results in `mmf.m5_reference`, skill bundle and `mmf_sa` wheel in `/Volumes/mmf/m5/assets`, read-only grants to learners |
 | Learner added | `setup/user_setup` | MMF skill and templated `.assistant_instructions.md` in `/Users/{username}/` |
-| Lab start | `content` | `labs/` imported into the learner's folder as `mmf-workshop/` |
+| Lab start | `content` | Course notebooks imported into the learner's folder as `mmf-workshop/` |
 | Lab end | template `lab_end.py` → `vocareum/scripts/python/mmf_lab_end.py` | Cancels runs; deletes the learner's jobs (Skill 4), clusters (Skill 3) and MLflow experiments. Vocareum drops the managed catalog itself |
 
 ## 5. Grading
@@ -95,7 +95,7 @@ The `autograde` notebook must create the table named by its `table` parameter wi
 | `score` | `INT` | 0 to that rubric's maximum score |
 | `feedback` | `VARCHAR(255)` | Required when the score is below the maximum |
 
-**Not used:** the MMF course is not graded (decided 2026-10-16); lab checkpoints are learner feedback only. Kept here for reference. Grades would flow back to the LMS through LTI when it is enabled.
+**Not used:** the MMF course is not graded (decided 2026-10-16); each lesson's *Check your work* is learner feedback only. Kept here for reference. Grades would flow back to the LMS through LTI when it is enabled.
 
 ## 6. Compute
 

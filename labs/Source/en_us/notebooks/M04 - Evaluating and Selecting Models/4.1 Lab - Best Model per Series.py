@@ -1,20 +1,26 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 5 — Post-process and Evaluate
+# MAGIC # 4.1 Lab — Best Model per Series
 # MAGIC
-# MAGIC Selects the best model per series, produces an evaluation summary,
-# MAGIC and writes the results tables.
+# MAGIC Select the best model per series, build a leaderboard, and see where each
+# MAGIC model class wins — the answer to *"which model should we deploy for each product?"*
 # MAGIC
 # MAGIC Automatically merges pre-computed foundation model results (from
 # MAGIC `mmf.m5.reference_evaluation_output`) with participant CPU results,
 # MAGIC so every participant sees how foundation models compare — even without
 # MAGIC GPU access.
 # MAGIC
-# MAGIC This notebook is both the **catchup/bootstrap** and the **reference solution**.
+# MAGIC Best-model selection averages the metric over backtest windows and breaks ties
+# MAGIC in favour of simpler model classes (cheaper to run in production).
 
 # COMMAND ----------
 
-# MAGIC %run ../_includes/config
+# MAGIC %md
+# MAGIC ## Classroom setup
+
+# COMMAND ----------
+
+# MAGIC %run ../Includes/Classroom-Setup-4.1
 
 # COMMAND ----------
 
@@ -25,28 +31,17 @@ print(f"Metric: {metric}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Verify evaluation output exists
+# MAGIC ### Your evaluation results
 
 # COMMAND ----------
 
 eval_table = f"{out}.m5_evaluation_output"
-
-# Entering Lab 5 cold: start from the reference Lab 4 results.
-if not spark.catalog.tableExists(eval_table) or spark.table(eval_table).isEmpty():
-    _ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
-    (
-        spark.table(f"{reference}.m5_evaluation_output")
-        .write.format("delta").mode("overwrite").option("overwriteSchema", "true")
-        .saveAsTable(eval_table)
-    )
-    print(f"No Lab 4 results found — copied reference results from {reference}")
-
 eval_df = spark.table(eval_table)
 eval_count = eval_df.count()
 
 models_present = [r["model"] for r in eval_df.select("model").distinct().collect()]
 print(f"Evaluation rows: {eval_count}")
-print(f"Models from Lab 4: {sorted(models_present)}")
+print(f"Models from 3.3: {sorted(models_present)}")
 
 # COMMAND ----------
 
@@ -198,6 +193,42 @@ LIMIT 10
 
 # COMMAND ----------
 
-import json
-result = spark.sql(f"SELECT COUNT(*) AS n FROM {out}.m5_best_models").collect()[0]["n"]
-dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "best_models_count": result}))
+# MAGIC %md
+# MAGIC ### Ask Genie Code about the results
+# MAGIC
+# MAGIC - *Which model wins most often?*
+# MAGIC - *Show me series where the foundation model beats all statistical models.*
+# MAGIC - *What do the worst-performing series have in common?*
+# MAGIC
+# MAGIC Worst-performing series are often intermittent items where every model struggles;
+# MAGIC in production you might route them to a dedicated model (e.g. Croston) or a simple fallback.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Check your work
+
+# COMMAND ----------
+
+# MAGIC %run ../Includes/_checks
+
+# COMMAND ----------
+
+checks = []
+
+best_table = f"{out}.m5_best_models"
+try:
+    best_count = spark.table(best_table).count()
+    checks.append(("Best models table exists", True, f"{best_count} rows"))
+    checks.append(("Has rows", best_count > 0, ""))
+except Exception as e:
+    checks.append(("Best models table exists", False, str(e)))
+
+summary_table = f"{out}.m5_evaluation_summary"
+try:
+    summary_count = spark.table(summary_table).count()
+    checks.append(("Evaluation summary exists", True, f"{summary_count} rows"))
+except Exception as e:
+    checks.append(("Evaluation summary exists", False, str(e)))
+
+finish("4.1", checks)

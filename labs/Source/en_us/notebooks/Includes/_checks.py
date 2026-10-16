@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # Checkpoint helpers
 # MAGIC
-# MAGIC Included by every lab `checkpoint.py` via `%run ../_includes/checks`.
+# MAGIC Run by the *Check your work* section of every lesson via `%run ../Includes/_checks`.
 # MAGIC `finish()` prints a PASS/FAIL report for the learner and exits with JSON,
 # MAGIC so a scripted smoke test can read the result:
 # MAGIC

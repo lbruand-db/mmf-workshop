@@ -15,13 +15,15 @@ DIST_DIR = REPO_ROOT / "dist"
 # Copyrighted third-party reference material, kept locally for structure only.
 # It must never be committed or packaged (see SPECS/RESTRUCTURE.md).
 REFERENCE_DIR = ".sources"
-# Learners only get labs/. The admin archive (Vocareum workspace_setup /
-# user_setup) also carries labs/, because workspace_setup runs the Lab 4
-# reference solution through ../labs/04-execute/run_cpu.
+COURSE_NOTEBOOKS = "labs/Source/en_us/notebooks"
+# Learners only get the course notebooks. The admin archive (Vocareum
+# workspace_setup / user_setup) also carries them, because workspace_setup runs
+# the reference solution (lesson 3.2) through ../labs/Source/en_us/notebooks/...
+# labs/Source/en_us/instructor/ is never packaged.
 # name -> (directories, root that archive paths are relative to)
 ARCHIVES = {
-    "mmf-workshop-labs.zip": (["labs"], REPO_ROOT / "labs"),
-    "mmf-workshop-setup.zip": (["setup", "labs"], REPO_ROOT),
+    "mmf-workshop-labs.zip": ([COURSE_NOTEBOOKS], REPO_ROOT / COURSE_NOTEBOOKS),
+    "mmf-workshop-setup.zip": (["setup", COURSE_NOTEBOOKS], REPO_ROOT),
 }
 
 
@@ -140,7 +142,7 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("build", help="Package labs/ and setup/ into dist/mmf-workshop-{labs,setup}.zip")
+    sub.add_parser("build", help="Package the course notebooks and setup/ into dist/mmf-workshop-{labs,setup}.zip")
 
     install_p = sub.add_parser("install", help="Import notebook sources into a Databricks workspace")
     install_p.add_argument("--email", required=True, help="Target user email")

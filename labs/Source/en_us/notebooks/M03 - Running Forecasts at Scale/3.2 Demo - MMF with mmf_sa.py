@@ -1,17 +1,18 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Lab 4 — Run MMF Forecast (CPU models, reference solution)
+# MAGIC # 3.2 Demo — MMF with mmf_sa
 # MAGIC
 # MAGIC Runs the workshop model set on serverless CPU:
 # MAGIC - **Local**: SeasonalNaive, AutoETS, AutoTheta, CrostonOptimized, TSB
 # MAGIC - **Global ML**: LightGBM (MLForecast)
 # MAGIC
-# MAGIC Foundation models run separately on GPU (see `run_foundation.py`).
+# MAGIC Foundation models need a GPU and are not part of this demo; their results are
+# MAGIC pre-computed and merged in 4.1.
 # MAGIC
-# MAGIC This is the **reference solution**: the same forecast the agent builds in
-# MAGIC Skill 4, without the agent (~5–10 min on 100 series). `setup/workspace_setup`
-# MAGIC runs it once into `mmf.m5_reference`; to skip the wait, use `catchup.py`,
-# MAGIC which copies those results instead.
+# MAGIC This is the forecast the agent builds in 3.3, written directly against
+# MAGIC `mmf_sa` (~5–10 min on 100 series). It is also the **reference solution**:
+# MAGIC `setup/workspace_setup` runs it once into `mmf.m5_reference`, which 3.3 and
+# MAGIC 4.1 copy from when you skip ahead.
 
 # COMMAND ----------
 
@@ -34,7 +35,12 @@ logging.getLogger("py4j.java_gateway").setLevel(logging.WARNING)
 
 # COMMAND ----------
 
-# MAGIC %run ../_includes/config
+# MAGIC %md
+# MAGIC ## Classroom setup
+
+# COMMAND ----------
+
+# MAGIC %run ../Includes/Classroom-Setup-3.2
 
 # COMMAND ----------
 
@@ -48,9 +54,6 @@ train_table = f"{source}.daily_train_{n_series}"
 print(f"Train data: {train_table}")
 print(f"Run ID: {run_id}")
 
-# COMMAND ----------
-
-_ = spark.sql(f"CREATE SCHEMA IF NOT EXISTS {out}")
 
 # COMMAND ----------
 
