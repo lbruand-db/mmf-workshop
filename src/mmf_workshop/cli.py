@@ -12,6 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 NOTEBOOK_DIRS = ["setup", "labs"]
 NOTEBOOK_HEADER = "# Databricks notebook source"
 DIST_DIR = REPO_ROOT / "dist"
+# Copyrighted third-party reference material, kept locally for structure only.
+# It must never be committed or packaged (see SPECS/RESTRUCTURE.md).
+REFERENCE_DIR = ".sources"
 # Learners only get labs/. The admin archive (Vocareum workspace_setup /
 # user_setup) also carries labs/, because workspace_setup runs the Lab 4
 # reference solution through ../labs/04-execute/run_cpu.
@@ -30,6 +33,8 @@ def find_notebooks(dirs: list[str] = NOTEBOOK_DIRS) -> list[Path]:
             print(f"WARNING: {src} not found, skipping", file=sys.stderr)
             continue
         for py in sorted(src.rglob("*.py")):
+            if REFERENCE_DIR in py.relative_to(REPO_ROOT).parts:
+                continue
             notebooks.append(py)
     return notebooks
 
@@ -39,7 +44,25 @@ def validate_notebook(path: Path) -> bool:
     return first_line == NOTEBOOK_HEADER
 
 
+def check_reference_material() -> int:
+    """Fail if any reference material is tracked by git."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", REFERENCE_DIR],
+        cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+    ).stdout.split()
+    if tracked:
+        print(f"ERROR: {REFERENCE_DIR}/ is reference material and must not be committed:", file=sys.stderr)
+        for t in tracked:
+            print(f"  {t}", file=sys.stderr)
+        print(f"Run: git rm -r --cached {REFERENCE_DIR}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_build(args: argparse.Namespace) -> int:
+    rc = check_reference_material()
+    if rc:
+        return rc
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     for name, (dirs, root) in ARCHIVES.items():
         rc = build_archive(dirs, root, DIST_DIR / name)
