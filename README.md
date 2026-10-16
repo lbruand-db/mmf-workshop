@@ -28,6 +28,10 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   ├── 00_data_load.py       # Load M5 data into Unity Catalog (called by workspace_setup)
 │   ├── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
 │   └── VERSIONS.md           # Pinned upstream versions
+├── vocareum/                 # Vocareum course packaging — see vocareum/README.md
+│   ├── courseware/mmf-workshop.cfg  # Course config (content, setup, autograde, admin cluster)
+│   ├── docs/README.md        # Learner instructions (Vocareum side pane)
+│   └── scripts/python/mmf_lab_end.py  # Lab-end reaper for learner jobs/clusters/experiments
 └── labs/
     ├── _includes/
     │   ├── config.py         # Shared widgets + read/write locations (%run by every lab)
@@ -99,7 +103,10 @@ Instructors can run it with only `username` set to print a participant's grades.
 
 ### Packaging
 
-`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.dbc` (learner content) and `mmf-workshop-setup.dbc` (admin setup, plus `labs/` so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
+See [`vocareum/README.md`](vocareum/README.md) for the Vocareum course settings, uploads and test plan.
+
+
+`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.zip` (learner content) and `mmf-workshop-setup.zip` (admin setup, plus `labs/` so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
 
 ## Running the labs
 

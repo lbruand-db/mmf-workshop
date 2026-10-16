@@ -1,4 +1,4 @@
-"""Build and deploy MMF workshop notebooks as a Databricks DBC archive."""
+"""Build and deploy MMF workshop notebooks as source-format notebook archives (.zip)."""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ DIST_DIR = REPO_ROOT / "dist"
 # reference solution through ../labs/04-execute/run_cpu.
 # name -> (directories, root that archive paths are relative to)
 ARCHIVES = {
-    "mmf-workshop-labs.dbc": (["labs"], REPO_ROOT / "labs"),
-    "mmf-workshop-setup.dbc": (["setup", "labs"], REPO_ROOT),
+    "mmf-workshop-labs.zip": (["labs"], REPO_ROOT / "labs"),
+    "mmf-workshop-setup.zip": (["setup", "labs"], REPO_ROOT),
 }
 
 
@@ -117,7 +117,7 @@ def main() -> None:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("build", help="Package labs/ and setup/ into dist/mmf-workshop-{labs,setup}.dbc")
+    sub.add_parser("build", help="Package labs/ and setup/ into dist/mmf-workshop-{labs,setup}.zip")
 
     install_p = sub.add_parser("install", help="Import notebook sources into a Databricks workspace")
     install_p.add_argument("--email", required=True, help="Target user email")
