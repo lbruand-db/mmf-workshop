@@ -23,7 +23,7 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   └── NOTES.md              # Working notes and test results
 ├── setup/                    # Admin-only — never shipped to learners
 │   ├── workspace_setup.py    # Once per workspace: data, skill bundle staging, grants
-│   ├── user_setup.py         # Once per learner: install MMF skill for Genie Code
+│   ├── user_setup.py         # Optional: admin-side MMF skill install (lessons self-install)
 │   ├── 00_data_load.py       # Load M5 data into Unity Catalog (called by workspace_setup)
 │   ├── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
 │   └── VERSIONS.md           # Pinned upstream versions
@@ -93,7 +93,9 @@ Run once per workspace. It:
 4. Runs the reference solution (lesson *3.2 Demo — MMF with mmf_sa*, 100 series) into `mmf.m5_reference`, which lessons copy from when entered cold. Skipped if present.
 5. Grants `learner_group` (default `account users`) read-only access to `mmf.m5` and `mmf.m5_reference`. For an instructor-led workshop set `allow_user_schemas=true`, so participants can create their `mmf.{user}` schema.
 
-### 2. User setup — `setup/user_setup.py`
+### 2. User setup — `setup/user_setup.py` (optional)
+
+Lessons install the MMF skill for each learner on their first Classroom setup (`Includes/_skill`), so no per-user step is required. Use this notebook to install it ahead of time — e.g. for an instructor-led workshop — or to force a reinstall.
 
 Run once per learner, with `username` set to their email (comma-separated for several). It installs the staged bundle into `/Users/{email}/.assistant/skills/`, and `assistant_instructions.md` — with its `### User Context` filled in — as `/Users/{email}/.assistant_instructions.md`.
 

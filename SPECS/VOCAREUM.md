@@ -81,7 +81,7 @@ A `dbfs/` subfolder of the course folder is copied into DBFS; `patches/` holds h
 | Vocareum event | What runs | Effect |
 |----------------|-----------|--------|
 | Workspace created | `setup/workspace_setup` | `mmf.m5` data, foundation reference results, Lab 4 reference results in `mmf.m5_reference`, skill bundle and `mmf_sa` wheel in `/Volumes/mmf/m5/assets`, read-only grants to learners |
-| Learner added | `setup/user_setup` | MMF skill and templated `.assistant_instructions.md` in `/Users/{username}/` |
+| Each lesson's Classroom setup | `Includes/_skill` via `Includes/_common` | MMF skill and templated `.assistant_instructions.md` in the learner's `/Users/{me}/`, installed by the learner (the Course Vending app has no per-user hook; `setup/user_setup` is the admin fallback) |
 | Lab start | `content` | Course notebooks imported into the learner's folder as `mmf-workshop/` |
 | Lab end | template `lab_end.py` → `vocareum/scripts/python/mmf_lab_end.py` | Cancels runs; deletes the learner's jobs (Skill 4), clusters (Skill 3) and MLflow experiments. Vocareum drops the managed catalog itself |
 
@@ -113,7 +113,7 @@ The MMF skills can still provision clusters (Skill 3 offers 16/32 vCPU CPU and G
 ## 7. Genie Code
 
 - The workspace must be Premium or Enterprise; Genie Code is pay-as-you-go with a free monthly allowance per user.
-- The skill must sit at exact paths: the bundle's contents flat in `/Users/{user}/.assistant/skills/` and the instructions at `/Users/{user}/.assistant_instructions.md`. The leading dots matter. `setup/user_setup` installs both and fills in the `### User Context` block.
+- The skill must sit at exact paths: the bundle's contents flat in `/Users/{user}/.assistant/skills/` and the instructions at `/Users/{user}/.assistant_instructions.md`. The leading dots matter. Each lesson's Classroom setup installs both (`Includes/_skill`) and fills in the `### User Context` block; `setup/user_setup` does the same as admin.
 - **Still to confirm:** that Genie Code is enabled on Vocareum-provisioned workspaces in the GenAI org, and its concurrency limits for a full workspace of learners.
 
 ## 8. Cost per learner (rough)

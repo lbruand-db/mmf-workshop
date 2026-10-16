@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # Classroom setup — 3.3
 # MAGIC
-# MAGIC Creates your output schema and puts this lesson's input in place: the prepared
+# MAGIC Creates your output schema, installs the MMF skill for Genie Code, and puts this lesson's input in place: the prepared
 # MAGIC training data from 2.2 (copied from the shared 100-series table if you skipped it).
 
 # COMMAND ----------
@@ -12,4 +12,5 @@
 # COMMAND ----------
 
 ensure_schema()
+ensure_mmf_skill()
 ensure_table("m5_train_data", f"{source}.daily_train_100")

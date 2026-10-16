@@ -8,7 +8,10 @@
 # MAGIC `username` to install for every participant at once.
 # MAGIC
 # MAGIC Installs the MMF skill for Genie Code into the learner's home folder, from
-# MAGIC the bundle staged by `workspace_setup`:
+# MAGIC the bundle staged by `workspace_setup` (shared installer:
+# MAGIC `labs/Source/en_us/notebooks/Includes/_skill`). Lessons also install it for the
+# MAGIC learner on their first Classroom setup, so this is only needed where you want it
+# MAGIC in place beforehand (instructor-led workshops) or to force a reinstall:
 # MAGIC
 # MAGIC ```
 # MAGIC /Users/{username}/
@@ -20,18 +23,19 @@
 
 # COMMAND ----------
 
+# MAGIC %run ../labs/Source/en_us/notebooks/Includes/_skill
+
+# COMMAND ----------
+
 dbutils.widgets.text("host", "")
 dbutils.widgets.text("token", "")
 dbutils.widgets.text("username", "")
 dbutils.widgets.text("catalog", "mmf")
 dbutils.widgets.text("schema", "m5")
 
-host = dbutils.widgets.get("host") or spark.conf.get("spark.databricks.workspaceUrl")
-host = "https://" + host.removeprefix("https://").removeprefix("http://").rstrip("/")
-token = (
-    dbutils.widgets.get("token")
-    or dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-)
+ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+host = dbutils.widgets.get("host") or ctx.apiUrl().get()
+token = dbutils.widgets.get("token") or ctx.apiToken().get()
 usernames = [u.strip() for u in dbutils.widgets.get("username").split(",") if u.strip()]
 assert usernames, "username is required"
 
@@ -39,51 +43,12 @@ skills_dir = f"/Volumes/{dbutils.widgets.get('catalog')}/{dbutils.widgets.get('s
 
 # COMMAND ----------
 
-import base64
-import re
-from pathlib import Path
-
-import requests
-
-session = requests.Session()
-session.headers["Authorization"] = f"Bearer {token}"
-
-
-def api(method: str, path: str, **payload):
-    resp = session.request(method, f"{host}/api/2.0/{path}", json=payload)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def import_file(local: Path, ws_path: str, content: bytes | None = None):
-    data = content if content is not None else local.read_bytes()
-    api("POST", "workspace/import", path=ws_path, format="AUTO", overwrite=True,
-        content=base64.b64encode(data).decode())
-
-
-bundle = sorted(p for p in Path(skills_dir, "bundle").iterdir() if p.is_file())
-instructions = Path(skills_dir, "assistant_instructions.md").read_text()
-print(f"Skill bundle: {len(bundle)} files from {skills_dir} "
-      f"(ref {Path(skills_dir, 'VERSION').read_text()[:12]})")
-
-# COMMAND ----------
-
-def personalise(text: str, email: str) -> str:
-    """Fill the `### User Context` placeholders with this learner's details."""
-    text = re.sub(r"^- Workspace: .*$", f"- Workspace: {host}", text, count=1, flags=re.M)
-    return re.sub(r"^- Email: .*$", f"- Email: {email}", text, count=1, flags=re.M)
-
-
+results = {}
 for email in usernames:
-    home = f"/Users/{email}"
-    api("POST", "workspace/mkdirs", path=f"{home}/.assistant/skills")
-    for f in bundle:
-        import_file(f, f"{home}/.assistant/skills/{f.name}")
-    import_file(None, f"{home}/.assistant_instructions.md",
-                content=personalise(instructions, email).encode())
-    print(f"  OK  {email}: {len(bundle)} skill files + .assistant_instructions.md")
+    results[email] = install_mmf_skill(email, skills_dir, host, token, force=True)
+    print(f"  {email}: {results[email]}")
 
 # COMMAND ----------
 
 import json
-dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "users": usernames, "skill_files": len(bundle)}))
+dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "users": results}))

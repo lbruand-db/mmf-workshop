@@ -239,7 +239,7 @@ Record actual runtimes in the dry run (§10) and adjust the backtest config if a
 
 ### 7.2 Setup automation (`setup/`)
 - `setup/workspace_setup.py` (Vocareum `workspace_setup`): creates the shared catalog and schemas, stages the pinned skill bundle and `mmf_sa` wheel in a volume, runs the data load (`00_data_load.py`), the foundation reference results (`01_precompute_foundation.py`) and the reference solution (lesson 3.2 → `m5_reference`), and grants learners read-only access. Runs once per workspace (each Vocareum workspace has its own metastore).
-- `setup/user_setup.py` (Vocareum `user_setup`): for each user (one, or a comma-separated list for G1), imports the skill bundle and the templated instructions file into their home folder through the Workspace API. Idempotent (`overwrite`).
+- `setup/user_setup.py` (Vocareum `user_setup`): for each user (one, or a comma-separated list for G1), imports the skill bundle and the templated instructions file into their home folder through the Workspace API (shared installer `Includes/_skill`, forced reinstall). Optional: lessons self-install.
 - `setup/02_validate_env.py` *(not built yet)*: smoke test as a participant. Checks the skill is visible, the data is readable, the schema is writable, and lesson 2.2 runs end-to-end on `daily_train_100`.
 - Optionally package setup as a **Databricks Asset Bundle** (`databricks.yml`), so the same deploy works for the customer workspace and the Vocareum template workspace.
 
@@ -269,7 +269,7 @@ Self-paced conversion of §6. Target ~4 h of learner time in total. A Vocareum s
 See `VOCAREUM.md` for the platform facts and `vocareum/README.md` for the settings.
 - **Shared AWS workspaces** in the GenAI org, with the users-per-workspace limit set as high as product limits allow. Each workspace has its own metastore, so `setup/workspace_setup.py` (the `.cfg` `workspace_setup` entry) loads the shared data and reference results in each new workspace.
 - Learners are workspace users, not admins. Each has a Vocareum **managed catalog**, where all their outputs go (schema `mmf`); Vocareum drops it at user cleanup. Learner notebooks never create catalogs.
-- On learner start, `setup/user_setup.py` (the `user_setup` entry) installs the MMF skill for that learner.
+- Each lesson's Classroom setup installs the MMF skill into the learner's own home folder (`Includes/_skill`, versioned, never replacing a learner's own `.assistant_instructions.md`), because the Course Vending app has no per-user hook.
 - Compute: serverless only — no GPU, no provisioned-throughput serving (§6.6). Learner notebooks don't download code from GitHub (§7.1).
 - Session: 240 min, time budget at most 3× that, timer and README on. **End Lab Behavior = terminate**, so `lab_end` runs `vocareum/scripts/python/mmf_lab_end.py` to delete the learner's jobs, clusters and experiments (Skills 3 and 4 create them outside the managed catalog). A cluster policy restricting learner clusters is recommended on top.
 
@@ -316,7 +316,7 @@ Scope for G1 if time is short: Labs 0–5 are must-have; Lab 6 and G3 are demo-o
 | Risk | Mitigation |
 |------|------------|
 | Agent non-determinism (Genie Code skips or batches gates, generates different code) | Golden-path prompts in ANSWER blocks; *Check your work* in each lesson; *Short on time?* fallback; pinned skill version |
-| Genie Code not enabled or skills not picked up (path-sensitive install) | `setup/user_setup.py` + `02_validate_env.py`; verify a day before; fallback: run the lessons' *Short on time?* cells with the instructor narrating the agent flow |
+| Genie Code not enabled or skills not picked up (path-sensitive install) | Lessons self-install the skill (`Includes/_skill`); `setup/user_setup.py` as admin fallback; `02_validate_env.py`; verify a day before; fallback: run the lessons' *Short on time?* cells with the instructor narrating the agent flow |
 | Long job runtimes / queueing with many concurrent participants | Serverless default; 100 series by default; CPU model set; lessons copy reference results in seconds |
 | No GPU (G2 by policy; G1 if no quota) | Foundation results pre-computed on CPU at setup and merged in Lab 5; GPU track only in G1 (§6.6) |
 | Learner jobs / clusters keep running after the lab (Skills 3–4 create them) | End Lab Behavior = terminate; `lab_end` reaper; cluster policy limiting learner clusters |
@@ -348,7 +348,7 @@ mmf-workshop/
 ├── SPECS/                        # SPEC.md (this document), VOCAREUM.md, NOTES.md
 ├── setup/                        # admin-only (G1 and G2); never shipped to learners
 │   ├── workspace_setup.py        # Vocareum workspace_setup: data, reference results, staging, grants
-│   ├── user_setup.py             # Vocareum user_setup: MMF skill install per user
+│   ├── user_setup.py             # admin-side MMF skill install (optional; lessons self-install)
 │   ├── 00_data_load.py
 │   ├── 01_precompute_foundation.py
 │   ├── 02_validate_env.py        # (planned)

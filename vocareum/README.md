@@ -2,7 +2,7 @@
 
 How to publish the MMF workshop as a Vocareum course with the **Vocareum Course Vending Machine** app (the Databricks app that creates Vocareum courses; its URL is in `SPECS/NOTES.md`). Platform docs: go/field-driven-enablement-labs, go/vocareum-lab-guidelines.
 
-The app creates the course from a form and generates its `config.json` (**View config.json** at the top of the form). It has no per-user setup hook and no lab-end hook — see [Known gaps](#known-gaps).
+The app creates the course from a form and generates its `config.json` (**View config.json** at the top of the form). It has no per-user setup hook — the lessons install the MMF skill for each learner themselves — and no lab-end hook (see [Known gaps](#known-gaps)).
 
 ## 1. Build
 
@@ -61,22 +61,20 @@ Before clicking **Create Course**, open **View config.json** and save it as `voc
 |-------|-----------|------|
 | Workspace provisioned | `setup/workspace_setup` (serverless job, once per workspace) | Shared `mmf.m5` data, foundation and reference forecast results (`mmf.m5_reference`), skill bundle and `mmf_sa` wheel staged in `/Volumes/mmf/m5/assets`, read-only grants to `account users` |
 | Lab start | Lab Content | Imports the course as `mmf-workshop-labs/` and opens `AGENDA` |
-| Each lesson | `Includes/Classroom-Setup-x.y` | Prints the learner's output location and puts the lesson's inputs in place |
+| Each lesson | `Includes/Classroom-Setup-x.y` | Prints the learner's output location, installs the MMF skill for Genie Code in the learner's home folder (first run, or when the staged version changes), and puts the lesson's inputs in place |
 | Lab Time reached | Vocareum | Ends the session |
 
 ## 4. Test
 
 1. Create the course and wait for the workspace setup job to finish (check the job run in the workspace if the lab doesn't open).
-2. Install the MMF skill for your test student (see [Known gaps](#known-gaps)).
-3. Open the lab as a student. `AGENDA` should open and its lesson links should work. In lesson 1.2, Genie Code should list the MMF skill, and the setup cell should print an output location from *lab platform metadata*.
-4. Open each lesson cold (in any order), run its Classroom setup and *Short on time?* cells, then *Check your work*: all should PASS.
-5. Run one Genie Code lesson end to end (2.2 is the quickest) to check the agent flow.
+2. Open the lab as a student. `AGENDA` should open and its lesson links should work. In lesson 1.2, the setup cell should print `MMF skill: installed …` and an output location from *lab platform metadata*; then Genie Code should list the MMF skill (reopen the Genie Code panel if it was already open).
+3. Open each lesson cold (in any order), run its Classroom setup and *Short on time?* cells, then *Check your work*: all should PASS.
+4. Run one Genie Code lesson end to end (2.2 is the quickest) to check the agent flow.
 
 ## Known gaps
 
-- **MMF skill install (blocks Genie Code):** the app has no per-user hook, so `setup/user_setup` doesn't run. Until the install moves into the lessons' Classroom setup, run `setup/user_setup` by hand as a workspace admin, with `username` set to the student's email (comma-separated for several).
 - **No lab-end cleanup:** jobs and clusters a learner creates through Genie Code (Skills 3–4) aren't deleted when the lab ends. `vocareum/scripts/python/mmf_lab_end.py` exists for platforms with a lab-end hook; here, check the workspace for leftovers after testing.
-- **To verify on the first run:** that the `ops.meta` keys are `catalog_name` / `schema_name` / `username` (otherwise outputs fall back to `mmf.{user}`); that `account users` covers the students; that the serverless setup job can reach GitHub and PyPI to stage the skill bundle and build the wheel; and that the `environment_version = "4"` notebook header is honoured.
+- **To verify on the first run:** that the `ops.meta` keys are `catalog_name` / `schema_name` / `username` (otherwise outputs fall back to `mmf.{user}`); that `account users` covers the students; that the serverless setup job can reach GitHub and PyPI to stage the skill bundle and build the wheel; that the `environment_version = "4"` notebook header is honoured; and that learners can read the staged bundle in `/Volumes/mmf/m5/assets/skills` (granted by `workspace_setup`). If the skill install fails for a learner, run `setup/user_setup` as admin with their email.
 
 ## Appendix: manual course configuration
 

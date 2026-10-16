@@ -108,3 +108,23 @@ def ensure_table(name: str, src: str) -> None:
         print(f"  OK  {target} (from your earlier work)")
     else:
         print(f"  OK  {target} <- {src} ({copy_table(src, name)} rows)")
+
+# COMMAND ----------
+
+# MAGIC %run ./_skill
+
+# COMMAND ----------
+
+skills_dir = f"/Volumes/{catalog}/{source_schema}/assets/skills"
+
+
+def ensure_mmf_skill() -> None:
+    """Install the MMF skill for Genie Code into the learner's own home folder,
+    from the bundle staged by `setup/workspace_setup`. Never fails the lesson."""
+    try:
+        ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+        status = install_mmf_skill(user_email, skills_dir, ctx.apiUrl().get(), ctx.apiToken().get())
+        print(f"  MMF skill: {status}")
+    except Exception as e:
+        print(f"  WARN  MMF skill install failed: {e}")
+        print("        Ask the instructor to run setup/user_setup for you.")

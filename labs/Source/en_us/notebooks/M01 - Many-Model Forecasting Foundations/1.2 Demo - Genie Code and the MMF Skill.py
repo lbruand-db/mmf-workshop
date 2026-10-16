@@ -43,27 +43,20 @@
 # MAGIC %md
 # MAGIC ## A. Check the MMF skill files
 # MAGIC
-# MAGIC The skill lives in your home folder: the bundle in `.assistant/skills/` and the agent instructions in `.assistant_instructions.md`. This cell checks the files are there — it doesn't prove Genie Code has loaded them (section B does).
+# MAGIC The Classroom setup installed the skill in your home folder: the bundle in `.assistant/skills/` and the agent instructions in `.assistant_instructions.md`. This cell checks the files are there — it doesn't prove Genie Code has loaded them (section B does).
 
 # COMMAND ----------
 
 skill_path = f"/Users/{user_email}/.assistant/skills/SKILL.md"
 
 try:
-    import requests
-    host = spark.conf.get("spark.databricks.workspaceUrl")
-    token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-    resp = requests.get(
-        f"https://{host}/api/2.0/workspace/get-status",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"path": skill_path},
-    )
-    skill_installed = resp.status_code == 200
+    ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+    skill_installed = _WorkspaceFiles(ctx.apiUrl().get(), ctx.apiToken().get()).exists(skill_path)
     if skill_installed:
         print(f"  OK  Skill file found at {skill_path}")
     else:
         print(f"  WARN  Skill file not found at {skill_path}")
-        print(f"        Ask the instructor to re-run setup/user_setup for you.")
+        print(f"        Re-run the Classroom setup cell; if it still fails, ask the instructor.")
 except Exception as e:
     skill_installed = None
     print(f"  SKIP  Could not check skill path: {e}")
@@ -75,7 +68,7 @@ except Exception as e:
 # MAGIC
 # MAGIC 1. Open **Genie Code** (the assistant panel).
 # MAGIC 2. Ask: *What skills do you have access to?*
-# MAGIC 3. You should see the **Many-Model Forecasting** skill and its sub-skills. If not, ask the instructor to re-run `setup/user_setup` for you.
+# MAGIC 3. You should see the **Many-Model Forecasting** skill and its sub-skills. If not, close and reopen the Genie Code panel; if it's still missing, ask the instructor.
 # MAGIC
 # MAGIC Every lesson prints where your outputs go. Nothing you do affects other participants.
 
@@ -91,6 +84,8 @@ except Exception as e:
 # COMMAND ----------
 
 checks = []
+
+checks.append(("MMF skill installed", bool(skill_installed), skill_path))
 
 try:
     spark.sql(f"DESCRIBE SCHEMA {out}")

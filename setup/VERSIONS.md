@@ -16,5 +16,5 @@ Everything learners run is pinned and staged in `/Volumes/mmf/m5/assets/` by `se
 
 1. Pick the new commit: `git ls-remote https://github.com/databricks-industry-solutions/many-model-forecasting.git HEAD`.
 2. Update the `mmf_ref` default in `workspace_setup.py` and the table above.
-3. Re-run `workspace_setup` with `force_reload=true`. The skill bundle and wheel are always re-staged; `force_reload` also recomputes the data and the `m5_reference` results with the new `mmf_sa`. Then re-run `user_setup` for existing users.
+3. Re-run `workspace_setup` with `force_reload=true`. The skill bundle and wheel are always re-staged; `force_reload` also recomputes the data and the `m5_reference` results with the new `mmf_sa`. Learners pick up the new skill version on their next Classroom setup (the installer compares a version marker); `user_setup` can force it.
 4. Re-run every lesson's *Check your work*, and re-check the golden-path prompts if the skills' gates changed.
