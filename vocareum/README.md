@@ -20,7 +20,7 @@ This writes to `dist/`:
 | Archive | Contents | Used by `.cfg` key |
 |---------|----------|--------------------|
 | `mmf-workshop-labs.zip` | `labs/` — learner content | `content` |
-| `mmf-workshop-setup.zip` | `setup/` + `labs/` — admin notebooks | `workspace_setup`, `user_setup`, `autograde` |
+| `mmf-workshop-setup.zip` | `setup/` + `labs/` — admin notebooks | `workspace_setup`, `user_setup` |
 
 ## 2. Course and part settings
 
@@ -35,7 +35,7 @@ Clone a course template in the **GenAI** org (serverless enabled), with **Clone 
 | Budget (total time) | ≤ 720 min | At most 3× the session length |
 | End Lab Behavior | **Terminate** resources | Otherwise `lab_end` doesn't run and learner jobs/clusters keep running |
 | Interface | Timer on, Readme button on | Shows `docs/README.md` |
-| Rubrics | `lab0`, `lab1`, `lab4`, `lab5`, max score 1 each | Must match `setup/autograde.py` |
+| Grading | Off | The course is not graded; checkpoints are learner feedback |
 | Course Feedback | On | |
 
 ## 3. Upload
@@ -60,15 +60,13 @@ In **Configure Workspace → Files** (do **not** save an image — `/voc` is alr
 | Workspace created | `setup/workspace_setup` (admin cluster) | Shared `mmf.m5` data, foundation and Lab 4 reference results, skill bundle and `mmf_sa` wheel staged in `/Volumes/mmf/m5/assets`, learner grants. Takes about 30–45 min the first time |
 | Learner added | `setup/user_setup` | Installs the MMF skill and `.assistant_instructions.md` in the learner's home folder |
 | Lab start | `content` | Imports `labs/` as `mmf-workshop/`, opens `00-setup/catchup` |
-| Submit | `setup/autograde` | Runs every checkpoint for the learner, writes the grades table |
 | Lab end | `mmf_lab_end.reap_user` | Cancels runs and deletes jobs, clusters and MLflow experiments the learner created. Vocareum drops the managed catalog itself |
 
 ## 5. Test
 
 1. Open **Student View**. Lab 0 should open, and Genie Code should list the MMF skill.
 2. Run each lab's `catchup`, then its `checkpoint`: all should PASS.
-3. Click **Submit**: the grades should show `lab0`–`lab5` at full score. For a fresh learner with nothing run, every lab should score 0 (only Lab 0's shared-data checks pass).
-4. Click **End Lab**, then check from an admin session that the learner's jobs, clusters and experiments are gone.
+3. Click **End Lab**, then check from an admin session that the learner's jobs, clusters and experiments are gone.
 
 ## To verify on the first deployment
 

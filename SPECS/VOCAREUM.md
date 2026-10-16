@@ -69,7 +69,7 @@ A JSON file in the course folder ending in `.cfg`. A *DBC object* is `{src, entr
 | `content` | — | — | `mmf-workshop-labs.zip`, opens `00-setup/catchup` |
 | `workspace_setup` | admin (workspace + metastore) | `host`, `token` | `setup/workspace_setup` |
 | `user_setup` | admin | `host`, `token`, `username` | `setup/user_setup` |
-| `autograde` | admin | `host`, `token`, `username`, `table` | `setup/autograde` |
+| `autograde` | admin | `host`, `token`, `username`, `table` | Not used — the course is not graded |
 | `admin_cluster_config` | — | — | Cluster that runs the hooks above (DBR, node type, Spark confs, libraries) |
 | `cluster_config` / `warehouse_config` | — | — | Managed per-user compute. **Not used**: learners run on serverless |
 | `secrets`, `enable_dbfs`, `entry` | — | — | Not used |
@@ -83,7 +83,6 @@ A `dbfs/` subfolder of the course folder is copied into DBFS; `patches/` holds h
 | Workspace created | `setup/workspace_setup` | `mmf.m5` data, foundation reference results, Lab 4 reference results in `mmf.m5_reference`, skill bundle and `mmf_sa` wheel in `/Volumes/mmf/m5/assets`, read-only grants to learners |
 | Learner added | `setup/user_setup` | MMF skill and templated `.assistant_instructions.md` in `/Users/{username}/` |
 | Lab start | `content` | `labs/` imported into the learner's folder as `mmf-workshop/` |
-| Submit | `setup/autograde` | Runs each lab `checkpoint` for the learner and writes the grades table |
 | Lab end | template `lab_end.py` → `vocareum/scripts/python/mmf_lab_end.py` | Cancels runs; deletes the learner's jobs (Skill 4), clusters (Skill 3) and MLflow experiments. Vocareum drops the managed catalog itself |
 
 ## 5. Grading
@@ -96,7 +95,7 @@ The `autograde` notebook must create the table named by its `table` parameter wi
 | `score` | `INT` | 0 to that rubric's maximum score |
 | `feedback` | `VARCHAR(255)` | Required when the score is below the maximum |
 
-`setup/autograde.py` maps each lab checkpoint to a rubric (`lab0`, `lab1`, `lab4`, `lab5`; max score 1). Grades flow back to the LMS through LTI when it is enabled.
+**Not used:** the MMF course is not graded (decided 2026-10-16); lab checkpoints are learner feedback only. Kept here for reference. Grades would flow back to the LMS through LTI when it is enabled.
 
 ## 6. Compute
 
@@ -136,9 +135,8 @@ What learners leave running dominates the cost. That's why End Lab Behavior must
 | 2 | GPU / serverless GPU | **Not used** — against guidelines, and unavailable anyway |
 | 3 | Per-learner or shared workspace | **Shared**, with a users-per-workspace limit and per-user managed catalogs |
 | 4 | Packaging format | **`.cfg` + archives** in `/voc/private/courseware`, README in `/voc/docs` — see `vocareum/README.md` |
-| 5 | Can setup call the Databricks APIs? | **Yes** — `workspace_setup` / `user_setup` / `autograde` get `host` and `token` |
+| 5 | Can setup call the Databricks APIs? | **Yes** — `workspace_setup` / `user_setup` get `host` and `token` |
 | 6 | Genie Code enabled on provisioned workspaces? | **Open** — check in Student View; otherwise go/lpt-general-request |
 | 7 | Admin cluster DBR and Unity Catalog access mode for `/Volumes` | **Open** — check on first deployment |
 | 8 | How the template's `lab_end.py` receives `host` / `token` / `username` | **Open** — check in the cloned template |
 | 9 | Does `account users` cover Vocareum learners (for grants)? | **Open** |
-| 10 | Can rubrics be scoped per part, if each lab becomes its own part? | **Open** — `autograde` currently grades all labs |

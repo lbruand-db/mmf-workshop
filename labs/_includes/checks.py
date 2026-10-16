@@ -3,8 +3,8 @@
 # MAGIC # Checkpoint helpers
 # MAGIC
 # MAGIC Included by every lab `checkpoint.py` via `%run ../_includes/checks`.
-# MAGIC `finish()` prints a PASS/FAIL report and exits with JSON that
-# MAGIC `setup/autograde` turns into a Vocareum grade:
+# MAGIC `finish()` prints a PASS/FAIL report for the learner and exits with JSON,
+# MAGIC so a scripted smoke test can read the result:
 # MAGIC
 # MAGIC ```json
 # MAGIC {"lab": "Lab 1", "status": "FAIL", "checks": [{"name": "...", "ok": false, "detail": "..."}]}

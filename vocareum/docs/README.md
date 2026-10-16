@@ -21,7 +21,6 @@ By the end of this lab you can:
 - **Shared data** is read-only in `mmf.m5`.
 - **Stuck, or want to skip ahead?** Run the lab's **`catchup`** notebook. It puts the lab's expected outputs in place in seconds, so you can continue with the next lab. Every lab can be started this way.
 - **Check your work** with the lab's **`checkpoint`** notebook, which prints PASS or FAIL for each item.
-- When you're done, click **Submit** to be graded. Grading runs the same checkpoints.
 
 Lab numbers follow the MMF skill numbers, so they go 0, 1, 4, 5.
 
@@ -56,7 +55,7 @@ No time to wait? Run `04-execute/catchup` instead. `04-execute/run_cpu` shows th
    - *Which model wins most often?*
    - *Show me series where the foundation model beats all statistical models.*
    - *What do the worst-performing series have in common?*
-3. Run `05-evaluate/checkpoint`, then click **Submit**.
+3. Run `05-evaluate/checkpoint`.
 
 ## Tips
 

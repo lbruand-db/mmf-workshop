@@ -129,7 +129,7 @@ Every lab directory (`labs/NN-name/`) contains:
 
 - `README.md`: objective, duration, preconditions (tables that must exist), steps, and expected outputs.
 - `prompts.md`: **golden-path Genie Code prompts**, plus the expected answer at each STOP gate (e.g. gate `1.0a` → `{catalog}.{user_schema}`; `1.5a` → no dynamic regressors). Participants copy these when unsure. This keeps an LLM-driven lab reproducible.
-- `checkpoint.py` (Databricks notebook): **validates** the lab's outputs (tables exist, row counts, schema, at least N models evaluated) and prints PASS/FAIL. The same check is the Vocareum auto-grader (§8.4).
+- `checkpoint.py` (Databricks notebook): **validates** the lab's outputs (tables exist, row counts, schema, at least N models evaluated) and prints PASS/FAIL, as learner feedback (the course is not graded, §8.4).
 - `catchup.py`: **non-agent fallback** that produces the lab's outputs deterministically in seconds, by copying pre-computed reference results from `{catalog}.m5_reference`. A participant who falls behind, or whose agent goes off-track, runs it and continues with the next lab. Labs with a long-running step also have a reference-solution notebook (e.g. Lab 4's `run_cpu.py`, which calls `mmf_sa` directly, derived from `examples/m5/*`); `setup/workspace_setup` runs it once to produce the reference results.
 - `instructor_notes.md`: talking points, timings, common failure modes.
 
@@ -238,7 +238,6 @@ Record actual runtimes in the dry run (§10) and adjust the backtest config if a
 ### 7.2 Setup automation (`setup/`)
 - `setup/workspace_setup.py` (Vocareum `workspace_setup`): creates the shared catalog and schemas, stages the pinned skill bundle and `mmf_sa` wheel in a volume, runs the data load (`00_data_load.py`), the foundation reference results (`01_precompute_foundation.py`) and the Lab 4 reference solution (`labs/04-execute/run_cpu.py` → `m5_reference`), and grants learners read-only access. Runs once per workspace (each Vocareum workspace has its own metastore).
 - `setup/user_setup.py` (Vocareum `user_setup`): for each user (one, or a comma-separated list for G1), imports the skill bundle and the templated instructions file into their home folder through the Workspace API. Idempotent (`overwrite`).
-- `setup/autograde.py` (Vocareum `autograde`): see §8.4.
 - `setup/02_validate_env.py` *(not built yet)*: smoke test as a participant. Checks the skill is visible, the data is readable, the schema is writable, and Lab 1 `catchup.py` runs end-to-end on `daily_train_100`.
 - Optionally package setup as a **Databricks Asset Bundle** (`databricks.yml`), so the same deploy works for the customer workspace and the Vocareum template workspace.
 
@@ -273,12 +272,11 @@ See `VOCAREUM.md` for the platform facts and `vocareum/README.md` for the settin
 - Session: 240 min, time budget at most 3× that, timer and README on. **End Lab Behavior = terminate**, so `lab_end` runs `vocareum/scripts/python/mmf_lab_end.py` to delete the learner's jobs, clusters and experiments (Skills 3 and 4 create them outside the managed catalog). A cluster policy restricting learner clusters is recommended on top.
 
 ### 8.4 Assessment
-- Each lab's `checkpoint.py` exits with machine-readable JSON (`status` PASS/FAIL plus per-check details). `setup/autograde.py`, the Vocareum `autograde` entry, runs them for the submitting learner and writes the `rubric` / `score` / `feedback` table Vocareum reads.
+- **No grading** (decided 2026-10-16). Each lab's `checkpoint.py` gives the learner PASS/FAIL feedback per item and exits with JSON for scripted smoke tests.
 - Module quizzes cover the concepts in §3 objectives 1, 4 and 6.
-- Completion requires Labs 0–5 PASS.
 
 ### 8.5 Packaging for the Course Vendor
-- Deliverables: the course `.cfg` and two notebook archives built by `uv run mmf-workshop build` (`mmf-workshop-labs.zip` for learners, `mmf-workshop-setup.zip` for admin hooks), learner instructions (`vocareum/docs/README.md`), the `lab_end` reaper, grader (`setup/autograde.py`), slide deck, instructor guide, and `setup/VERSIONS.md`.
+- Deliverables: the course `.cfg` and two notebook archives built by `uv run mmf-workshop build` (`mmf-workshop-labs.zip` for learners, `mmf-workshop-setup.zip` for admin hooks), learner instructions (`vocareum/docs/README.md`), the `lab_end` reaper, slide deck, instructor guide, and `setup/VERSIONS.md`.
 - A content update process for when upstream MMF or the skills change: re-pin the SHA, re-run `02_validate_env.py`, and re-record any videos affected by skill/gate changes.
 - *Decided:* packaging is a `.cfg` plus archives in `/voc/private/courseware` and a README in `/voc/docs`; provisioning is shared workspaces with per-user managed catalogs. *Open:* Genie Code availability on Vocareum-provisioned workspaces, and what the Course Vendor app expects beyond this. See §12 and `VOCAREUM.md §9`.
 
@@ -349,7 +347,6 @@ mmf-workshop/
 ├── setup/                        # admin-only (G1 and G2); never shipped to learners
 │   ├── workspace_setup.py        # Vocareum workspace_setup: data, reference results, staging, grants
 │   ├── user_setup.py             # Vocareum user_setup: MMF skill install per user
-│   ├── autograde.py              # Vocareum autograde: runs lab checkpoints, writes grades
 │   ├── 00_data_load.py
 │   ├── 01_precompute_foundation.py
 │   ├── 02_validate_env.py        # (planned)
