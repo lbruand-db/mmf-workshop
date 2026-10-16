@@ -13,7 +13,13 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install "mmf_sa[local] @ git+https://github.com/databricks-industry-solutions/many-model-forecasting.git" "mmf_sa[global] @ git+https://github.com/databricks-industry-solutions/many-model-forecasting.git" --quiet
+# MAGIC %md
+# MAGIC `mmf_sa` is installed from the pinned wheel staged by `setup/workspace_setup`
+# MAGIC (no download from GitHub).
+
+# COMMAND ----------
+
+# MAGIC %pip install -r /Volumes/mmf/m5/assets/wheels/requirements-cpu.txt --quiet
 # MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------

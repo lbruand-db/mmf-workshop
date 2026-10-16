@@ -10,7 +10,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install "chronos-forecasting[training]" torch --quiet
+# MAGIC %pip install "chronos-forecasting[training]==2.2.2" torch --quiet
 # MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------

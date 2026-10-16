@@ -11,7 +11,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install "mmf_sa[foundation] @ git+https://github.com/databricks-industry-solutions/many-model-forecasting.git" --quiet
+# MAGIC %pip install -r /Volumes/mmf/m5/assets/wheels/requirements-foundation.txt --quiet
 # MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------

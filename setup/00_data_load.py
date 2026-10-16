@@ -6,6 +6,10 @@
 # MAGIC for the workshop. Run this **once** as an admin before the session.
 # MAGIC
 # MAGIC **Memory-optimised:** loads M5, samples early, frees memory between writes.
+# MAGIC
+# MAGIC Raw M5 files are cached under `cache_dir` (`workspace_setup` passes the
+# MAGIC `assets` volume). If `{cache_dir}/m5/datasets` already exists, nothing is
+# MAGIC downloaded — pre-stage it there for an offline setup.
 
 # COMMAND ----------
 
@@ -16,9 +20,11 @@
 
 dbutils.widgets.text("catalog", "mmf")
 dbutils.widgets.text("schema", "m5")
+dbutils.widgets.text("cache_dir", "")
 
 catalog = dbutils.widgets.get("catalog")
 schema = dbutils.widgets.get("schema")
+cache_dir = dbutils.widgets.get("cache_dir")
 
 # COMMAND ----------
 
@@ -40,7 +46,7 @@ import numpy as np
 import pandas as pd
 from datasetsforecast.m5 import M5
 
-df_target, df_exogenous, static_features = M5.load(directory=str(pathlib.Path.home()))
+df_target, df_exogenous, static_features = M5.load(directory=cache_dir or str(pathlib.Path.home()))
 
 # Spark's Arrow bridge doesn't support unsigned int types — cast to signed
 for df in [df_target, df_exogenous, static_features]:

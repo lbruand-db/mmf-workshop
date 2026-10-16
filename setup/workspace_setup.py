@@ -7,9 +7,12 @@
 # MAGIC For an instructor-led workshop, run it by hand before the session.
 # MAGIC
 # MAGIC 1. Creates the shared catalog/schema and an `assets` volume
-# MAGIC 2. Stages the MMF skill bundle in the volume (read later by `user_setup`)
-# MAGIC 3. Loads M5 data (`00_data_load`) and foundation reference results
-# MAGIC    (`01_precompute_foundation`) — skipped if the tables already exist
+# MAGIC 2. Stages, from the upstream repo at the pinned `mmf_ref`, the MMF skill
+# MAGIC    bundle (read later by `user_setup`) and an `mmf_sa` wheel (installed by
+# MAGIC    the labs) — so learners never download code from GitHub
+# MAGIC 3. Loads M5 data (`00_data_load`, raw files cached in the volume) and
+# MAGIC    foundation reference results (`01_precompute_foundation`) — skipped if
+# MAGIC    the tables already exist
 # MAGIC 4. Grants learners read-only access to the shared data
 # MAGIC
 # MAGIC Safe to re-run.
@@ -45,10 +48,11 @@ print(f"Shared location: {source}, assets: {assets_dir}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Stage the MMF skill bundle
+# MAGIC ### Stage the MMF skill bundle and `mmf_sa` wheel
 # MAGIC
-# MAGIC Downloads the upstream repo at the pinned `mmf_ref` and copies the Genie Code
-# MAGIC skill bundle and agent instructions into `{assets_dir}/skills/`.
+# MAGIC Downloads the upstream repo at the pinned `mmf_ref`, copies the Genie Code
+# MAGIC skill bundle and agent instructions into `{assets_dir}/skills/`, and builds
+# MAGIC `mmf_sa` into `{assets_dir}/wheels/` with a requirements file per model set.
 
 # COMMAND ----------
 
@@ -64,7 +68,8 @@ instructions_name = "skills/assistant_instructions.md"
 
 url = f"https://codeload.github.com/databricks-industry-solutions/many-model-forecasting/tar.gz/{mmf_ref}"
 with urllib.request.urlopen(url) as resp:
-    archive = tarfile.open(fileobj=io.BytesIO(resp.read()), mode="r:gz")
+    repo_tarball = resp.read()
+archive = tarfile.open(fileobj=io.BytesIO(repo_tarball), mode="r:gz")
 
 if skills_dir.exists():
     shutil.rmtree(skills_dir)
@@ -91,6 +96,32 @@ print(f"Staged {len(staged)} skill files from {mmf_ref[:12]}: {sorted(staged)}")
 
 # COMMAND ----------
 
+import subprocess
+import sys
+
+wheels_dir = Path(assets_dir) / "wheels"
+if wheels_dir.exists():
+    shutil.rmtree(wheels_dir)
+wheels_dir.mkdir(parents=True)
+
+tarball_path = Path("/tmp/many-model-forecasting.tar.gz")
+tarball_path.write_bytes(repo_tarball)
+subprocess.run(
+    [sys.executable, "-m", "pip", "wheel", "--no-deps", "--quiet", str(tarball_path), "-w", str(wheels_dir)],
+    check=True,
+)
+(wheels_dir / "VERSION").write_text(mmf_ref)
+mmf_wheels = sorted(wheels_dir.glob("mmf_sa-*.whl"))
+assert len(mmf_wheels) == 1, f"Expected one mmf_sa wheel, got {mmf_wheels}"
+
+# The wheel file name depends on the build backend version, so labs install
+# through these stable requirements files instead of naming the wheel.
+for name, extras in {"requirements-cpu.txt": "local,global", "requirements-foundation.txt": "foundation"}.items():
+    (wheels_dir / name).write_text(f"mmf_sa[{extras}] @ file://{mmf_wheels[0]}\n")
+print(f"Built {mmf_wheels[0]} + requirements-cpu.txt / requirements-foundation.txt")
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### Load shared data
 
@@ -100,7 +131,9 @@ def tables_exist(*names):
     return all(spark.catalog.tableExists(f"{source}.{n}") for n in names)
 
 if force_reload or not tables_exist("daily_train_100", "daily_train_1000", "m5_static_features"):
-    result = dbutils.notebook.run("./00_data_load", 3600, {"catalog": catalog, "schema": schema})
+    result = dbutils.notebook.run(
+        "./00_data_load", 3600, {"catalog": catalog, "schema": schema, "cache_dir": assets_dir}
+    )
     print(f"00_data_load: {result}")
 else:
     print("M5 tables already present — skipping data load")

@@ -25,7 +25,8 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 │   ├── workspace_setup.py    # Once per workspace: data, skill bundle staging, grants
 │   ├── user_setup.py         # Once per learner: install MMF skill for Genie Code
 │   ├── 00_data_load.py       # Load M5 data into Unity Catalog (called by workspace_setup)
-│   └── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
+│   ├── 01_precompute_foundation.py  # Pre-compute foundation model results (CPU)
+│   └── VERSIONS.md           # Pinned upstream versions
 └── labs/
     ├── _includes/
     │   └── config.py         # Shared widgets + read/write locations (%run by every lab)
@@ -70,8 +71,8 @@ Both setup notebooks run as a workspace admin and are safe to re-run. On Vocareu
 Run once per workspace. It:
 
 1. Creates `mmf.m5` and the `mmf.m5.assets` volume.
-2. Stages the MMF skill bundle and agent instructions from the upstream repo, pinned by the `mmf_ref` widget, in `/Volumes/mmf/m5/assets/skills/`.
-3. Runs `00_data_load` and `01_precompute_foundation`, skipping either if its tables already exist (`force_reload=true` to redo):
+2. Stages, from the upstream repo pinned by the `mmf_ref` widget (see `setup/VERSIONS.md`), the MMF skill bundle and agent instructions in `/Volumes/mmf/m5/assets/skills/`, and an `mmf_sa` wheel plus requirements files in `/Volumes/mmf/m5/assets/wheels/`.
+3. Runs `00_data_load` (raw M5 files cached in the volume) and `01_precompute_foundation`, skipping either if its tables already exist (`force_reload=true` to redo):
 
    | Table | Description |
    |-------|-------------|
@@ -126,7 +127,7 @@ databricks jobs submit --json '{
 
 - **No GPU on Vocareum:** Both EC2 GPU quota and serverless GPU are unavailable. Foundation models are pre-computed on CPU and stored as reference data.
 - **MMF foundation models require GPU:** `run_forecast` with `accelerator="cpu"` silently skips foundation models. The pre-compute notebook uses `chronos-forecasting` directly instead.
-- **`mmf_sa` not on PyPI:** Install from GitHub: `pip install "mmf_sa[local] @ git+https://github.com/databricks-industry-solutions/many-model-forecasting.git"`
+- **`mmf_sa` not on PyPI:** `workspace_setup` builds it from the pinned upstream commit into `/Volumes/mmf/m5/assets/wheels/`; labs install it with `%pip install -r /Volumes/mmf/m5/assets/wheels/requirements-cpu.txt`. Pins are listed in `setup/VERSIONS.md`.
 
 ## Test results (2026-10-15)
 
