@@ -19,3 +19,4 @@
  - [ ] Theory: local vs global models — cross-learning across series, what global and foundation (zero-shot) models gain and lose; the theory behind 4.1's model-class comparison (lecture, e.g. 1.1)
  - [ ] Theory: multi-step strategies — recursive vs direct forecasting, error growth over the 28-day horizon (MMF's LightGBM is recursive) (good widget candidate)
  - [ ] Theory: combining forecasts vs picking a winner — the M-competitions' finding that combinations beat per-series selection; selection on 2 windows overfits (3.1); a simple ensemble as an extension of 4.1 (good widget candidate)
+-  [ ] Business : Timeseries forecasting examples.
