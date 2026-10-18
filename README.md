@@ -53,7 +53,8 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   ├── M03 - Running Forecasts at Scale/
     │   │   ├── 3.1 Lecture - Backtesting and Forecast Stability.py  # Interactive backtest explorer (JS)
     │   │   ├── 3.2 Demo - MMF with mmf_sa.py              # Also the reference solution
-    │   │   └── 3.3 Lab - Provision and Execute with Genie Code.py
+    │   │   ├── 3.3 Lab - Provision and Execute with Genie Code.py
+    │   │   └── 3.4 Appendix - Forecasting with Exogenous Variables.py  # SNAP / events / prices as regressors
     │   └── M04 - Evaluating and Selecting Models/
     │       ├── 4.1 Lab - Best Model per Series.py
     │       └── 4.2 Appendix - Choosing a Forecast Metric.py   # Interactive metric explorer (JS)

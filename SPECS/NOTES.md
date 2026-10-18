@@ -117,3 +117,17 @@ One serverless job (3 tasks): a test harness wrote a synthetic MMF-shaped evalua
 | Section D without reference results | Prints a skip message; later cells do nothing |
 
 Not yet run on the real `mmf.m5_reference` results (Vocareum workspace).
+
+## 2026-10-18 — 3.4 Appendix (exogenous variables) tested on e2-demo-field-eng
+
+`mmf_sa` at the pin: future regressors go in `dynamic_future_numerical` / `_categorical` with a separate `scoring_data` table (future dates, no target), unioned at scoring; backtests use each window's actual regressor values. StatsForecast uses them only in ARIMA-type models (`uses_exog`: ARIMA, AutoARIMA, AutoRegressive, MFLES); LightGBM uses them as features (the skill's validated path). Regressors must be numeric and non-NULL (the data-quality check drops series otherwise). M5's `daily_train_100` already carries `snap_*`, `event_*` and `sell_price`.
+
+Test: `setup/00_data_load` into `users.lucas_bruand` (cache volume `mmf_test_cache`), then the appendix on serverless with `mmf_sa` installed from GitHub at the pin (the only change from the course notebook). Run `1071930810179420`: SUCCESS in 8 min, *Check your work* PASS.
+
+| | No regressors | With `snap`, `is_event`, `relative_price` |
+|-|---------------|---------------------------------------------|
+| Backtest sMAPE (2 windows) | 1.185 | 1.173 |
+| Held-out 28 days: sMAPE / MAE / RMSE / WAPE / bias | 1.236 / 1.387 / 2.881 / 0.578 / +4.5% | 1.246 / 1.347 / 2.780 / 0.562 / +3.9% |
+| Series improved (by category) | — | FOODS 59%, HOBBIES 58%, HOUSEHOLD 63% |
+
+Lifts in the training data: SNAP ×1.16 FOODS vs ×1.04–1.07 others; discount days ×1.43–1.65; event days ×0.92–0.99. 99 of 100 series pass MMF's data-quality check.

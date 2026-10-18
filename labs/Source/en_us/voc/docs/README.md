@@ -51,6 +51,8 @@ By the end of this lab you can:
 
 **3.2 Demo — MMF with mmf_sa** is the instructor's demo: the same forecast written directly in Python, without the agent.
 
+**3.4 Appendix — Forecasting with Exogenous Variables** (optional, 20 min): add SNAP days, events and prices to a LightGBM forecast, and measure what they add on a held-out month.
+
 ## M04 — Evaluating and Selecting Models: 4.1 Lab — Best Model per Series (30 min)
 
 1. Run the notebook. It adds pre-computed **Chronos-Bolt** (foundation model) results next to yours, picks the best model per series, and builds a leaderboard.

@@ -40,7 +40,7 @@ labs/Source/en_us/
 │   ├── Version Info.py
 │   ├── Includes/
 │   │   ├── _common.py  _checks.py
-│   │   ├── Classroom-Setup-1.2.py  -2.2  -3.2  -3.3  -4.1
+│   │   ├── Classroom-Setup-1.2.py  -2.2  -3.2  -3.3  -3.4  -4.1
 │   │   └── Print-Dataset-Copyrights.py
 │   ├── M01 - Many-Model Forecasting Foundations/
 │   │   ├── 1.1 Lecture - Why Many-Model Forecasting          (phase 4)
@@ -52,7 +52,8 @@ labs/Source/en_us/
 │   ├── M03 - Running Forecasts at Scale/
 │   │   ├── 3.1 Lecture - Backtesting and Forecast Stability  (done 2026-10-18: interactive JS explorer)
 │   │   ├── 3.2 Demo - MMF with mmf_sa                        (was run_cpu.py; also the reference solution)
-│   │   └── 3.3 Lab - Provision and Execute with Genie Code   (was Lab 4; Skill 3 in phase 4)
+│   │   ├── 3.3 Lab - Provision and Execute with Genie Code   (was Lab 4; Skill 3 in phase 4)
+│   │   └── 3.4 Appendix - Forecasting with Exogenous Variables (added 2026-10-18)
 │   └── M04 - Evaluating and Selecting Models/
 │       ├── 4.1 Lab - Best Model per Series                   (was Lab 5)
 │       └── 4.2 Appendix - Choosing a Forecast Metric         (done 2026-10-18: interactive JS explorer)
