@@ -45,6 +45,11 @@
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC The `metric` widget selects which stored metric to rank by (`smape` unless the forecast was run with another one). On mostly-zero series sMAPE favours forecasts close to zero: see *4.2 Appendix — Choosing a Forecast Metric*.
+
+# COMMAND ----------
+
 dbutils.widgets.text("metric", "smape")
 metric = dbutils.widgets.get("metric")
 print(f"Metric: {metric}")
@@ -259,4 +264,4 @@ finish("4.1", checks)
 # MAGIC %md
 # MAGIC ## Summary
 # MAGIC
-# MAGIC You have a best model per series and a leaderboard across model classes — the basis for deciding what to deploy for each product. This is the end of the core course.
+# MAGIC You have a best model per series and a leaderboard across model classes — the basis for deciding what to deploy for each product. This is the end of the core course. **Optional:** *4.2 Appendix — Choosing a Forecast Metric* shows how the metric you rank by changes these winners.

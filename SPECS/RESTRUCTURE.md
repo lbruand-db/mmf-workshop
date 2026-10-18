@@ -55,7 +55,7 @@ labs/Source/en_us/
 │   │   └── 3.3 Lab - Provision and Execute with Genie Code   (was Lab 4; Skill 3 in phase 4)
 │   └── M04 - Evaluating and Selecting Models/
 │       ├── 4.1 Lab - Best Model per Series                   (was Lab 5)
-│       └── 4.2 Appendix - Forecast Accuracy Metrics          (phase 4)
+│       └── 4.2 Appendix - Choosing a Forecast Metric         (done 2026-10-18: interactive JS explorer)
 ├── instructor/
 │   └── Foundation Models on GPU.py             # was run_foundation.py; not in the learner zip
 └── voc/docs/README.md
@@ -73,7 +73,7 @@ Lesson numbers are final, so links don't change when the missing lectures are ad
 
 ### Phase 4 — New content
 - Lectures 1.1, 2.1, 3.1 (markdown-only notebooks, our own diagrams in `Includes/images/`).
-- Lab 2.3 Profile and Classify Series (Skill 2), Skill 3 provisioning in Lab 3.3, Appendix 4.2 metrics.
+- Lab 2.3 Profile and Classify Series (Skill 2), Skill 3 provisioning in Lab 3.3.
 - Make the Lab 4.1 foundation vs CPU comparison fair (same backtest windows, common series).
 - Electives later: M05 Hierarchical Reconciliation, M06 MLOps (G3).
 

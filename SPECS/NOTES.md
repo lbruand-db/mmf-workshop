@@ -101,3 +101,19 @@ Imported *3.1 Lecture — Backtesting and Forecast Stability* and `Includes/_bac
 | Console | No errors and nothing from the widget (only Databricks viewer warnings from the `file://` origin) |
 
 Dark mode checked by eye in the live notebook (2026-10-18): works well. Still to check: cell height. The other lessons were not tested on e2-demo (they need `workspace_setup`).
+
+## 2026-10-18 — 4.2 Appendix (metric explorer) tested on e2-demo-field-eng
+
+Metric semantics checked against `mmf_sa` at the pin (`abstract_model.calculate_metrics`, `MLForecastPipeline`): `metric` ∈ `smape` (default), `mape`, `mae`, `mse`, `rmse`, all sktime; only the chosen metric is stored, with the `forecast` / `actual` arrays. sktime replaces denominators below machine epsilon by epsilon, so MAPE on a zero-sales day ≈ 10¹⁵ and sMAPE of 0 vs 0 is 0.
+
+One serverless job (3 tasks): a test harness wrote a synthetic MMF-shaped evaluation table (`users.lucas_bruand.mmf_test_eval`, 40 series × 4 models × 2 windows, scored with `sktime==0.40.1`); the appendix ran against it, and once more without data.
+
+| Check | Result |
+|-------|--------|
+| Job run | SUCCESS (run `825005488496905`) — appendix with data `90540710307217`, without data `499456695586885` |
+| Widget | Renders in the Databricks output iframe; markdown tables with escaped `\|` render; no console errors in the standalone test; ~10 ms per re-render |
+| Presets (4 histories each) | Typical M5 item and Spare part: sMAPE, MAPE, MAE select Zero (bias −100%), RMSE the mean; Slow mover: MAPE selects Zero; Promotions: MAE → median (bias ≈ −20%), RMSE → mean; Fast mover: metrics agree but stability is low (close candidates) |
+| Section D SQL re-scoring | Recomputed sMAPE matches sktime's stored value to 4.4·10⁻¹⁶; per-profile and wins-per-model tables produced |
+| Section D without reference results | Prints a skip message; later cells do nothing |
+
+Not yet run on the real `mmf.m5_reference` results (Vocareum workspace).

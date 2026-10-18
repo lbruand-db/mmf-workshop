@@ -60,6 +60,8 @@ By the end of this lab you can:
    - *What do the worst-performing series have in common?*
 3. Run *Check your work*.
 
+**4.2 Appendix — Choosing a Forecast Metric** (optional, 10 min): an interactive explorer — see which forecast each metric selects as series get sparser or spikier, and re-score the workshop's results with other metrics.
+
 ## Tips
 
 - Genie Code pauses to ask you questions. Answer them one at a time; if it goes off-track, say so, or use the lesson's *Short on time?* cell.

@@ -43,6 +43,7 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   │   ├── _common.py            # Read/write locations + helpers (run by every Classroom-Setup)
     │   │   ├── _checks.py            # "Check your work" report
     │   │   ├── _backtest_explorer.py # HTML/JS widget for lecture 3.1
+    │   │   ├── _metric_explorer.py   # HTML/JS widget for appendix 4.2
     │   │   ├── Classroom-Setup-x.y.py  # Puts each lesson's inputs in place (enter any lesson cold)
     │   │   └── Print-Dataset-Copyrights.py
     │   ├── M01 - Many-Model Forecasting Foundations/
@@ -54,7 +55,8 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   │   ├── 3.2 Demo - MMF with mmf_sa.py              # Also the reference solution
     │   │   └── 3.3 Lab - Provision and Execute with Genie Code.py
     │   └── M04 - Evaluating and Selecting Models/
-    │       └── 4.1 Lab - Best Model per Series.py
+    │       ├── 4.1 Lab - Best Model per Series.py
+    │       └── 4.2 Appendix - Choosing a Forecast Metric.py   # Interactive metric explorer (JS)
     ├── instructor/
     │   └── Foundation Models on GPU.py   # Instructor-led only; not packaged
     └── voc/docs/README.md    # Learner instructions (Vocareum side pane)
