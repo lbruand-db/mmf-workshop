@@ -3,7 +3,7 @@
 Forecast hundreds of retail time series end-to-end — data prep, model execution and evaluation — by talking to **Genie Code**, Databricks' AI coding agent, with the **Many-Model Forecasting (MMF) skill**.
 
 **Dataset:** M5 (Walmart daily unit sales per item × store), sampled to 100 series.
-**Time:** about 2 hours. The lab session lasts 4 hours; the timer at the top shows what's left.
+**Time:** about 2 hours. The lab session lasts 4 hours; the timer at the top shows what's left. You can come back afterwards to finish the forecast jobs and explore your own results.
 
 ## Learning objectives
 
@@ -41,13 +41,13 @@ By the end of this lab you can:
 **3.3 Lab — Provision and Execute with Genie Code**
 
 1. In Genie Code, type `/provision-forecasting-resources`, then `/execute-mmf-forecast`.
-2. Choose the **CPU models** only: Seasonal Naive, AutoETS, AutoTheta, Croston Optimized, TSB, and LightGBM. GPUs aren't available in this lab — foundation model results are provided in 4.1.
+2. Choose these **CPU models** only: Seasonal Naive, AutoETS, Croston Optimized, TSB, and LightGBM. GPUs aren't available in this lab — foundation model results are provided in 4.1.
 3. Pick the **smallest CPU** compute option.
-4. Accept a 28-day horizon, `backtest_length=90`, `stride=7`, metric sMAPE.
-5. While the jobs run (about 10 min), open **Experiments** in the left menu and explore the MLflow runs.
+4. Ask for a 28-day horizon, **`backtest_length=56`, `stride=28`**, metric sMAPE.
+5. The jobs take 10–20 minutes. **Don't wait:** glance at **Experiments** in the left menu, run the *Short on time?* cell, and move on to M04. Come back to your own results later.
 6. Run *Check your work*. Expected outputs: `m5_evaluation_output`, `m5_scoring_output`.
 
-**3.2 Demo — MMF with mmf_sa** shows the same forecast written directly in Python, without the agent.
+**3.2 Demo — MMF with mmf_sa** is the instructor's demo: the same forecast written directly in Python, without the agent.
 
 ## M04 — Evaluating and Selecting Models: 4.1 Lab — Best Model per Series (30 min)
 

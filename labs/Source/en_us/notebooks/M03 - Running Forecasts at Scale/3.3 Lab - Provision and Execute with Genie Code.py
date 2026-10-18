@@ -46,9 +46,9 @@
 # MAGIC ## A. Provision and run the forecast
 # MAGIC
 # MAGIC 1. In Genie Code, type `/provision-forecasting-resources`, then `/execute-mmf-forecast`.
-# MAGIC 2. Choose the **CPU models** only: Seasonal Naive, AutoETS, AutoTheta, Croston Optimized, TSB, and LightGBM. GPUs aren't available in this lab — foundation model results are provided in 4.1.
+# MAGIC 2. Choose these **CPU models** only: Seasonal Naive, AutoETS, Croston Optimized, TSB, and LightGBM. GPUs aren't available in this lab — foundation model results are provided in 4.1.
 # MAGIC 3. Pick the **smallest CPU** compute option.
-# MAGIC 4. Accept a 28-day horizon (`prediction_length=28`), `backtest_length=90`, `stride=7`, metric sMAPE.
+# MAGIC 4. Ask for a 28-day horizon (`prediction_length=28`), **`backtest_length=56`, `stride=28`** (2 backtest windows, to keep the run short), metric sMAPE.
 # MAGIC 5. The outputs are `m5_evaluation_output` and `m5_scoring_output` in your schema.
 
 # COMMAND ----------
@@ -56,14 +56,14 @@
 # MAGIC %md
 # MAGIC ## B. While the jobs run
 # MAGIC
-# MAGIC The run takes about 10 minutes. Open **Experiments** in the left menu and explore the MLflow runs: parameters, metrics, and per-series results. If a model fails for one series, MMF logs it and carries on.
+# MAGIC The jobs take a while (about 10–20 minutes). **Don't wait for them:** open **Experiments** in the left menu to watch the MLflow runs, then move on — run the *Short on time?* cell below and continue with 4.1. You can come back to your own results later and re-run 4.1 on them.
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Short on time?
 # MAGIC
-# MAGIC Run the next cell to copy the reference forecast results into your schema in seconds. They were produced by *3.2 Demo — MMF with mmf_sa* (5 local models + LightGBM, 100 series, `backtest_length=90`, `stride=7`) when the workspace was set up.
+# MAGIC Run the next cell to copy the reference forecast results into your schema in seconds. They were produced by *3.2 Demo — MMF with mmf_sa* on the same 100 series when the workspace was set up. This **replaces** the tables your Genie Code jobs write — run it again later, or re-run the jobs, if you want your own results back.
 
 # COMMAND ----------
 

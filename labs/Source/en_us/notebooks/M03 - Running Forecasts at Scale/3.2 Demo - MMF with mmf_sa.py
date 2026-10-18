@@ -6,17 +6,23 @@
 # MAGIC %md
 # MAGIC # 3.2 Demo — MMF with mmf_sa
 # MAGIC
-# MAGIC Runs the workshop model set on serverless CPU:
-# MAGIC - **Local**: SeasonalNaive, AutoETS, AutoTheta, CrostonOptimized, TSB
-# MAGIC - **Global ML**: LightGBM (MLForecast)
+# MAGIC Runs the workshop model set on serverless CPU, directly against `mmf_sa` — the
+# MAGIC same forecast Genie Code builds for you in 3.3.
+# MAGIC
+# MAGIC | `model_set` widget | Models | Backtest | Time (100 series, serverless notebook) |
+# MAGIC |---|---|---|---|
+# MAGIC | **`fast`** (default) | SeasonalNaive, AutoETS, CrostonOptimized, TSB + LightGBM | 2 windows (`backtest_length=56`, `stride=28`) | ~10 min (to be confirmed) |
+# MAGIC | `full` | the above + AutoTheta | ~9 windows (`backtest_length=90`, `stride=7`) | ~1 hour |
+# MAGIC
+# MAGIC **In a workshop this is the instructor's demo** — the instructor runs it before
+# MAGIC class and walks through it while your own forecast jobs run in 3.3. You don't
+# MAGIC need its results: 3.3 and 4.1 use pre-computed reference results when you skip ahead.
 # MAGIC
 # MAGIC Foundation models need a GPU and are not part of this demo; their results are
 # MAGIC pre-computed and merged in 4.1.
 # MAGIC
-# MAGIC This is the forecast the agent builds in 3.3, written directly against
-# MAGIC `mmf_sa` (~5–10 min on 100 series). It is also the **reference solution**:
-# MAGIC `setup/workspace_setup` runs it once into `mmf.m5_reference`, which 3.3 and
-# MAGIC 4.1 copy from when you skip ahead.
+# MAGIC This notebook is also the **reference solution**: `setup/workspace_setup` runs it
+# MAGIC once (with `model_set=fast`) into `mmf.m5_reference`.
 
 # COMMAND ----------
 
@@ -67,9 +73,20 @@ logging.getLogger("py4j.java_gateway").setLevel(logging.WARNING)
 
 dbutils.widgets.text("n_series", "100")
 dbutils.widgets.text("run_id", "")
+dbutils.widgets.dropdown("model_set", "fast", ["fast", "full"])
 
 n_series = dbutils.widgets.get("n_series")
 run_id = dbutils.widgets.get("run_id") or str(uuid.uuid4())
+model_set = dbutils.widgets.get("model_set")
+
+# fast: fits in a workshop slot; full: every model, ~9 backtest windows (~1 h on 100 series)
+MODEL_SETS = {
+    "fast": {"backtest_length": 56, "stride": 28, "extra_local_models": []},
+    "full": {"backtest_length": 90, "stride": 7, "extra_local_models": ["StatsForecastAutoTheta"]},
+}
+backtest_length = MODEL_SETS[model_set]["backtest_length"]
+stride = MODEL_SETS[model_set]["stride"]
+print(f"Model set: {model_set} (backtest_length={backtest_length}, stride={stride})")
 
 train_table = f"{source}.daily_train_{n_series}"
 print(f"Train data: {train_table}")
@@ -100,10 +117,9 @@ from mmf_sa import run_forecast
 local_models = [
     "StatsForecastBaselineSeasonalNaive",
     "StatsForecastAutoETS",
-    "StatsForecastAutoTheta",
     "StatsForecastCrostonOptimized",
     "StatsForecastTSB",
-]
+] + MODEL_SETS[model_set]["extra_local_models"]
 
 run_forecast(
     spark=spark,
@@ -116,8 +132,8 @@ run_forecast(
     target="y",
     freq="D",
     prediction_length=28,
-    backtest_length=90,
-    stride=7,
+    backtest_length=backtest_length,
+    stride=stride,
     metric="smape",
     train_predict_ratio=1,
     data_quality_check=True,
@@ -151,8 +167,8 @@ run_forecast(
     target="y",
     freq="D",
     prediction_length=28,
-    backtest_length=90,
-    stride=7,
+    backtest_length=backtest_length,
+    stride=stride,
     metric="smape",
     train_predict_ratio=1,
     data_quality_check=True,

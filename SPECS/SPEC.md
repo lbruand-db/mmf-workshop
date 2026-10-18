@@ -96,7 +96,19 @@ Give participants the brief as copy-paste text, so every room gets the same Skil
 
 ## 6. Workshop content (shared by G1 and G2)
 
-### 6.1 Agenda for G1 (≈ 3h30 hands-on + breaks; adjust once the slot length is confirmed)
+### 6.1 Agenda for G1
+
+**Confirmed slot: 2 hours** (Tue 2026-10-20), with a follow-up session for learners to finish. Lesson 3.2 is an instructor demo run before class; learners never wait for forecast jobs — they launch them in 3.3 and carry on with reference results.
+
+| Time | Segment | Long step handled by |
+|------|---------|----------------------|
+| 0:00–0:15 | Intro + **1.2** Genie Code and the MMF Skill | — |
+| 0:15–0:40 | **2.2** Prep and Clean with Genie Code | — |
+| 0:40–1:10 | **3.3** Provision and Execute with Genie Code (launch jobs, fast settings) | Instructor walks through **3.2** (pre-run) and MLflow while jobs run; learners use *Short on time?* |
+| 1:10–1:40 | **4.1** Best Model per Series + questions to Genie Code | Own results if jobs finished, otherwise reference results |
+| 1:40–2:00 | Wrap-up, mapping to the customer's data, Q&A | Follow-up session to finish own runs |
+
+*Original ~3h30 plan, kept for longer deliveries:*
 
 | Time | Module | Format |
 |------|--------|--------|
@@ -147,10 +159,12 @@ Every lab directory (`labs/NN-name/`) contains:
 | 5 | 5 post-process | metric and selection rule | `m5_best_models`, `m5_evaluation_summary` (with `forecast_source`) |
 | 6 | 6 reconciliation | hierarchy levels | Reconciled forecasts table |
 
-**Default model set for the timed workshop.** It must finish within ~25 min on 1,000 series:
-- Local: `StatsForecastBaselineSeasonalNaive`, `StatsForecastAutoETS`, `StatsForecastAutoTheta`, `StatsForecastCrostonOptimized`, `StatsForecastTSB`
+**Default model set for the timed workshop** (lesson 3.2 `model_set=fast`, and the 3.3 golden path), on 100 series with `backtest_length=56, stride=28` (2 windows):
+- Local: `StatsForecastBaselineSeasonalNaive`, `StatsForecastAutoETS`, `StatsForecastCrostonOptimized`, `StatsForecastTSB`
 - Global ML: MLForecast LightGBM
 - Foundation: Chronos-2 or TimesFM 2.5 (see §6.6 for the fast-iteration strategy)
+
+*Measured 2026-10-18 on Vocareum, interactive serverless notebook:* the previous set (above + `StatsForecastAutoTheta`, `backtest_length=90, stride=7`) took **over 36 min and was still on AutoTheta**, about an hour in total. Hence the fast set; lesson 3.2's `model_set=full` keeps the original.
 
 Measure the actual runtime in the dry run (§10) and record it in `instructor_notes.md`.
 
