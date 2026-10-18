@@ -50,7 +50,7 @@ labs/Source/en_us/
 │   │   ├── 2.2 Demo - Prep and Clean with Genie Code         (was Lab 1)
 │   │   └── 2.3 Lab - Profile and Classify Series             (phase 4, Skill 2)
 │   ├── M03 - Running Forecasts at Scale/
-│   │   ├── 3.1 Lecture - Model Classes and Backtesting       (phase 4)
+│   │   ├── 3.1 Lecture - Backtesting and Forecast Stability  (done 2026-10-18: interactive JS explorer)
 │   │   ├── 3.2 Demo - MMF with mmf_sa                        (was run_cpu.py; also the reference solution)
 │   │   └── 3.3 Lab - Provision and Execute with Genie Code   (was Lab 4; Skill 3 in phase 4)
 │   └── M04 - Evaluating and Selecting Models/

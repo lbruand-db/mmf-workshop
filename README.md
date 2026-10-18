@@ -42,6 +42,7 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   ├── Includes/
     │   │   ├── _common.py            # Read/write locations + helpers (run by every Classroom-Setup)
     │   │   ├── _checks.py            # "Check your work" report
+    │   │   ├── _backtest_explorer.py # HTML/JS widget for lecture 3.1
     │   │   ├── Classroom-Setup-x.y.py  # Puts each lesson's inputs in place (enter any lesson cold)
     │   │   └── Print-Dataset-Copyrights.py
     │   ├── M01 - Many-Model Forecasting Foundations/
@@ -49,6 +50,7 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
     │   ├── M02 - Preparing Many Series/
     │   │   └── 2.2 Demo - Prep and Clean with Genie Code.py
     │   ├── M03 - Running Forecasts at Scale/
+    │   │   ├── 3.1 Lecture - Backtesting and Forecast Stability.py  # Interactive backtest explorer (JS)
     │   │   ├── 3.2 Demo - MMF with mmf_sa.py              # Also the reference solution
     │   │   └── 3.3 Lab - Provision and Execute with Genie Code.py
     │   └── M04 - Evaluating and Selecting Models/

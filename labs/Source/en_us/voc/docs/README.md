@@ -38,6 +38,8 @@ By the end of this lab you can:
 
 ## M03 — Running Forecasts at Scale (40 min)
 
+**3.1 Lecture — Backtesting and Forecast Stability** (optional, 10 min): an interactive explorer — change the backtest settings and see how stable the "best model" verdict is. Good to open while your jobs run.
+
 **3.3 Lab — Provision and Execute with Genie Code**
 
 1. In Genie Code, type `/provision-forecasting-resources`, then `/execute-mmf-forecast`.
