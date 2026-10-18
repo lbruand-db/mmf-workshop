@@ -21,7 +21,7 @@
 # MAGIC ## Learning objectives
 # MAGIC
 # MAGIC By the end of this lesson you can:
-# MAGIC - Explain a rolling-origin backtest and why each window refits the model on past data only.
+# MAGIC - Explain a rolling-origin backtest and why each window only uses data from before its cutoff.
 # MAGIC - Translate MMF's `prediction_length`, `backtest_length` and `stride` into the number and position of backtest windows.
 # MAGIC - Explain why a verdict based on one or two windows can be wrong, and choose settings that trade compute for stability.
 
@@ -32,9 +32,11 @@
 # MAGIC
 # MAGIC A single train/test split answers *"how did the model do on these 28 days?"* — one exam, one grade. A **rolling-origin backtest** repeats the exam: it picks several **cutoffs** in the past, and at each one it
 # MAGIC
-# MAGIC 1. trains the model on the data **before** the cutoff only (no peeking at the future),
+# MAGIC 1. gives the model only the data **before** the cutoff (no peeking at the future),
 # MAGIC 2. forecasts the next `prediction_length` days,
 # MAGIC 3. scores the forecast against what actually happened.
+# MAGIC
+# MAGIC In MMF, **local models** (StatsForecast: Seasonal Naive, AutoETS, …) are refitted on each window's history. **Global models** (MLForecast/LightGBM) are trained once, on the data before the first cutoff, and then predict each window from its updated history without refitting.
 # MAGIC
 # MAGIC ```
 # MAGIC history ───────────────────────────────────────────────────────────┤ today
@@ -44,7 +46,7 @@
 # MAGIC                                                  ↑ cutoffs, `stride` days apart
 # MAGIC ```
 # MAGIC
-# MAGIC The model's score is the **average over windows**. MMF does this for every model on every series, then — in 4.1 — keeps the model with the best average for each series.
+# MAGIC Each window gets one score (sMAPE by default, computed with sktime). MMF writes one row per series, model and window to the evaluation table; best-model selection — Skill 5, or lesson 4.1 — then averages each model's windows and keeps the best per series.
 
 # COMMAND ----------
 
@@ -75,7 +77,7 @@
 # MAGIC %md
 # MAGIC ## C. Explore
 # MAGIC
-# MAGIC The explorer backtests two simple models on three daily series, with exactly MMF's rules:
+# MAGIC The explorer backtests two simple local models on three daily series, placing windows exactly as `mmf_sa` does (first window starts `backtest_length` days before the end; windows `stride` days apart while a full horizon fits; refit at each cutoff) and scoring them with the same sMAPE and MAE formulas:
 # MAGIC - **Seasonal Naive** — next week repeats last week;
 # MAGIC - **Weekday average (4 wk)** — each weekday is the average of that weekday over the last 4 weeks.
 # MAGIC
@@ -115,7 +117,7 @@ displayHTML(BACKTEST_EXPLORER_HTML)
 # MAGIC %md
 # MAGIC ## E. Choosing settings in practice
 # MAGIC
-# MAGIC - **Windows cost compute.** Each window refits every model on every series: 9 windows cost about 4–5× as much as 2. That is why this workshop uses 2 windows — read its winners per series as indicative, not final.
+# MAGIC - **Windows cost compute.** Each window refits every local model on every series: 9 windows cost about 4–5× as much as 2 (global models are trained once, so for them extra windows only add predictions). That is why this workshop uses 2 windows — read its winners per series as indicative, not final.
 # MAGIC - **For production model selection, use more evidence:** several windows covering the seasonal events you care about (holidays, promotions), with a `stride` that is a multiple of 7 for daily data so that every window starts on the same weekday mix.
 # MAGIC - **Overlapping windows** (`stride` < `prediction_length`) are cheaper per bit of coverage but not independent; prefer more distinct windows to many overlapping ones.
 # MAGIC - **Look at the margin, not only the winner.** When two models are within noise of each other, either is a defensible choice; MMF's tie-break in 4.1 prefers the simpler model.

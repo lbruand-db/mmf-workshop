@@ -6,9 +6,14 @@
 # MAGIC HTML/SVG/JavaScript, no external libraries or network access) shown by
 # MAGIC *3.1 Lecture — Backtesting and Forecast Stability* with `displayHTML`.
 # MAGIC
-# MAGIC It backtests two simple models on three synthetic daily series with MMF's
-# MAGIC parameters (`prediction_length`, `backtest_length`, `stride`; window cutoffs at
-# MAGIC `n - backtest_length + k * stride`, like `mmf_sa`), and measures how stable the
+# MAGIC It backtests two simple local models on three synthetic daily series with MMF's
+# MAGIC parameters (`prediction_length`, `backtest_length`, `stride`), matching `mmf_sa`
+# MAGIC at the pinned commit (`Forecaster.evaluate_one_local_model` and
+# MAGIC `ForecastingRegressor.backtest`): first window starts at `last_date - backtest_length + 1`
+# MAGIC (index `n - backtest_length`), windows `stride` apart while `start + prediction_length`
+# MAGIC fits, refit on the history before each window. sMAPE matches sktime's
+# MAGIC `MeanAbsolutePercentageError(symmetric=True)` (0 when actual and forecast are both 0);
+# MAGIC MAE matches `MeanAbsoluteError`. It measures how stable the
 # MAGIC "best model" verdict is by replaying the same settings on 100 alternative
 # MAGIC histories of each series. Models: Seasonal Naive vs. the average of the same
 # MAGIC weekday over the last 4 weeks — close enough that one window can mislead.
