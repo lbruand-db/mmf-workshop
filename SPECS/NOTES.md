@@ -100,4 +100,4 @@ Imported *3.1 Lecture — Backtesting and Forecast Stability* and `Includes/_bac
 | Preset *MMF full (90 / 7)* | Sliders move to 90 / 7 and the charts re-render; Promotions becomes Moderate 88%, the others 100% — matches the lecture's answer block |
 | Console | No errors and nothing from the widget (only Databricks viewer warnings from the `file://` origin) |
 
-Still to check by eye in a live notebook: dark mode and cell height. The other lessons were not tested on e2-demo (they need `workspace_setup`).
+Dark mode checked by eye in the live notebook (2026-10-18): works well. Still to check: cell height. The other lessons were not tested on e2-demo (they need `workspace_setup`).
