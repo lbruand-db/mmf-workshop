@@ -32,7 +32,7 @@ Existing lessons are unchanged; numbers already reserved in `RESTRUCTURE.md` (1.
 1. **The course map above** — accept, or reorder. In particular: a new M05 for production topics and an M06 for GPU-only foundation-model content, rather than crowding M04.
 2. **Interactive widgets** follow the 3.1 / 4.2 pattern: self-contained HTML/SVG/JS, no libraries (no Plotly), seeded synthetic series, maths checked with a Node prototype before writing the lesson. Seven specs propose one; build them one at a time.
 3. **Classic compute on Vocareum** (needed only by 4.5) — the Vending app has an "Auto-create personal cluster" option; whether a Single Node cluster works there is untested. Until then, 4.5 is instructor-led in G1 and read-only in G2.
-4. **Branding of the slide deck** — "neutral" in this course means *not Databricks Academy*; whether to use the Databricks logo and colours is your call.
+4. **Slide deck** — built on the Databricks corporate Typst template ([typst-dbrx-template](https://github.com/lbruand-db/typst-dbrx-template)), so it is Databricks-branded (no Academy marks); open points are how to vendor the template and where speaker notes live (see the spec).
 
 ## Corrections applied during review
 
