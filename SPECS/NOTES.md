@@ -86,3 +86,18 @@ Reviewed the labs against go/field-driven-enablement-labs, go/vocareum-lab-guide
 2. Confirm the open items in `VOCAREUM.md §9` (admin cluster DBR / access mode, `lab_end.py` interface, `account users` grants, Genie Code enabled).
 3. Write `prompts.md` per lab, and the missing Labs 02, 03 and 06.
 4. Make the foundation vs CPU comparison fair in Lab 5 (backtest windows differ).
+
+## 2026-10-18 — 3.1 Lecture tested on e2-demo-field-eng
+
+Imported *3.1 Lecture — Backtesting and Forecast Stability* and `Includes/_backtest_explorer` (only these two — the lecture needs no `mmf.m5` data) into `/Users/<me>/mmf-workshop-test/` and ran the lecture as a one-off serverless job (environment `client: "4"`).
+
+| Check | Result |
+|-------|--------|
+| Job run | SUCCESS (run `489454615407416`, task run `922024763919743`); `%run` and `displayHTML` cells ran without errors |
+| `displayHTML` output | Identical to `BACKTEST_EXPLORER_HTML` (14,868 chars) — nothing stripped or escaped |
+| Rendering | Exported run opened in Chrome: the widget renders inside Databricks' sandboxed output iframe |
+| Defaults (56 / 28) | 2 windows; Steady seller Stable 95%, Intermittent Stable 100%, Promotions Fragile |
+| Preset *MMF full (90 / 7)* | Sliders move to 90 / 7 and the charts re-render; Promotions becomes Moderate 88%, the others 100% — matches the lecture's answer block |
+| Console | No errors and nothing from the widget (only Databricks viewer warnings from the `file://` origin) |
+
+Still to check by eye in a live notebook: dark mode and cell height. The other lessons were not tested on e2-demo (they need `workspace_setup`).
