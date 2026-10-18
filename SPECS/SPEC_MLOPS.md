@@ -1,221 +1,146 @@
-# SPEC — Operationalizing MMF: Scheduled Retraining, Model Promotion, and Monitoring
+# SPEC — MLOps with MMF: Drift, Retraining, Promotion and Monitoring
 
 | | |
 |---|---|
 | **TODO item** | `- [ ] Let's add a lesson on MLOps` |
-| **Status** | Draft for review — 2026-10-18 |
-| **Proposed lesson** | **M05 · 5.1 Lab** — Scheduled Retraining and Model Promotion; **M05 · 5.2 Appendix** — Monitoring Forecast Accuracy (both optional; part of M05 "Running MMF in Production" module) |
-| **Type / time** | Lab + optional Appendix; **optional for G1 & G2** (~45 min core + 30 min monitoring) |
-| **Compute** | Serverless CPU (notebooks, Jobs, SQL queries) |
+| **Status** | Draft for review — 2026-10-18 (revised: built on [lbruand-db/mmf-mlops](https://github.com/lbruand-db/mmf-mlops)) |
+| **Proposed lesson** | **M05 · 5.1 Lab** — The MLOps Loop: Drift, Retraining and Promotion; **M05 · 5.2 Appendix** — Monitoring Forecast Accuracy (both optional; M05 *Running MMF in Production*) |
+| **Type / time** | Lab ~45 min + Appendix ~30 min (runtimes to be measured) |
+| **Compute** | Serverless CPU (notebooks, jobs); a SQL warehouse for the alert (5.2) |
+| **Source** | `mmf-mlops` @ `main` (pushed 2026-10-01; private): `SPEC/SPECS.md` (deck + caveats C1–C8), `SPEC/SPECS_HANDSON.md` (hands-on design), `SPEC/DEMO_SCENARIO.md`, `demo/` (Asset Bundle + notebooks), `deck/` (Typst, same `typst-dbrx-template`) |
 
 ## 1. Goal and learner outcomes
 
-Enable learners to take a trained MMF forecast into production: schedule automatic retraining, manage model versions in Unity Catalog, and monitor forecast accuracy drift over time.
+Show the loop that turns MMF forecasts into an operated system — and be honest about which part MMF provides and which part you build. By the end, learners can:
+1. Say what MMF owns (training, backtesting, scoring, registering global/foundation models) and what it does not (scheduling, monitoring, drift detection, retraining triggers, promotion, CI/CD).
+2. Watch a model **drift**: a frozen Champion trained before a demand shock degrades after it.
+3. **Retrain** a Challenger, compare it with the Champion on the shocked segment (WAPE and bias), and **promote** it by moving the Unity Catalog `champion` alias.
+4. Turn MMF's backtest output into an accuracy-over-time table, and write the alert query that would trigger retraining (5.2).
 
-**Learner outcomes:**
-- Set up a Databricks Job to retrain an MMF forecast on a schedule and score new data.
-- Register trained MMF models in Unity Catalog and use model aliases for version management (e.g., swap `champion` → new challenger version).
-- Compare forecast accuracy before and after retraining to detect model drift.
-- (Optional, monitoring) Set up simple accuracy tracking: daily/weekly aggregates of actual vs forecast, and trigger alerts on threshold breaches (e.g. sMAPE > 15%).
+## 2. Background
 
-## 2. Background — what MMF supports (verified, with source refs)
+### 2.1 What mmf-mlops contains
 
-**Model Registration & Lifecycle (verified against Forecaster.py):**
-- MMF registers global models (LightGBM, NeuralForecast, Chronos) in UC during `run_forecast` (Forecaster.py lines 383, 502, 738): models are registered under `{model_output}.{model_name}_{use_case_name}` (e.g., `catalog.schema.LightGBMRegressor_m5`). Each retraining creates a new **version**; MMF does not set aliases itself.
-- Local models (statsforecast, sktime) are not persisted as registered artifacts — only results (predictions + metrics) are in `evaluation_output` and `scoring_output`. Each retraining cycle retrains local models from scratch.
-- Global model pickles are stored in `evaluation_output` as a binary column; they are not automatically reused across runs.
+A talk ("MLOps with MMF and MLflow, and the caveats") plus a runnable demo built to back it, on M5:
 
-**Scheduling & Jobs:**
-- Databricks Jobs support one-time and recurring schedules. They can run notebooks or submit Spark workloads. Since MMF operates via notebooks (Skills or direct `run_forecast` calls), a Job can invoke an MMF notebook on a fixed or cron schedule.
-- Multi-task jobs allow sequential steps: e.g., (1) run forecast, (2) register model, (3) score new data, (4) evaluate accuracy drift, all in one job run with conditional transitions.
+| `demo/` file | Role (Phase) |
+|--------------|--------------|
+| `databricks.yml`, `resources/jobs.yml` | Asset Bundle, dev / prod targets; jobs `mmf_setup`, `mmf_tick` (weekly cron, paused), `mmf_fast_forward`, `mmf_retrain`; `Project` / `Environment` tags; follows `databricks-solutions/mlops-quickstart` |
+| `src/data_prep.py` | M5 subsample (~200 series) → `sales_full` (0) |
+| `src/sim_clock.py`, `run_mmf.py`, `fast_forward.py` | `AS_OF` cursor via a `revealed_sales` view; MMF run at `AS_OF` (1–2) |
+| `src/maturation.py` | Explode MMF `evaluation_output` windows (`forecast`/`actual` arrays) into `forecast_vs_actual` (one row per series × model × target day, with `horizon_days`) (2) |
+| `src/metrics.py` | Weekly WAPE, sMAPE, bias per model × department × horizon bucket → `metrics` (2) |
+| `src/monitoring.py` | Lakehouse Monitoring inference-log monitor on `forecast_vs_actual` (regression; sliced by department and horizon) (2) |
+| `src/drift.py` | Inject a demand collapse: one department (default `HOBBIES_2`, the "spare parts" stand-in) × 0.3 from a shock date; idempotent via `sales_full_base` (3) |
+| `src/champion.py` | Frozen global Champion: `MLForecastLGBM` via `run_forecast`, trained up to a pre-shock cutoff, forecasting far enough to cross the shock; registered in UC by MMF (3) |
+| `src/promotion.py` | Champion vs Challenger WAPE / bias on the overlap window for the shocked segment; move the UC `champion` alias if the Challenger wins (3) |
+| `src/alert.sql`, `build_dashboard.py` | Breach query behind a SQL alert (latest week, 1-week horizon, n ≥ 20, WAPE > threshold); AI/BI dashboard (3) |
 
-**Monitoring & Drift Detection:**
-- Databricks Lakehouse Monitoring tables allow automatic data drift and model performance tracking if paired with logged predictions (not yet integrated with MMF). A simpler workshop pattern: compute daily/weekly forecast accuracy directly from `evaluation_output` and `scoring_output`, store in a "monitoring" table, and plot over time.
-- System tables (`system.billing.usage`, `system.access.audit`) are read-only and require attentive filtering but enable cost tracking and access audits.
+Status (its README): phases 0–3 built and validated on a workspace; CI/CD (GitHub Actions) and recording still open.
 
-**UC Model Registry — aliases and version management:**
-- Models registered in UC support **aliases** (named pointers to specific versions). UC does not use "stages" (Development/Staging/Production); instead, use aliases like `champion` (current production model), `challenger` (candidate), `archived`, etc.
-- Aliases allow safe promotion: update an alias to point to a new version without changing code that reads the model. All consumers automatically use the new version on refresh.
-- Access control is via UC grants (`GRANT USE_MODEL` to users/service principals).
+**The key design lesson** (`SPECS_HANDSON.md` §3, revised after building): re-running MMF at every simulated tick is far too slow, and it never shows drift anyway — MMF refits at every window and every run, so it always adapts. So: the accuracy timeline comes from **one** MMF backtest (`evaluation_output` already holds a forecast at every origin), and the drift arc needs a **global** model **held fixed** across an injected shock. Local models stay in the story for caveat C1.
 
-**Not yet supported (as of May 2026):**
-- Automated model validation (gating stage transitions on metric thresholds) — learners must evaluate and decide.
-- Hierarchical forecasts do not have native retraining-and-reconciliation pipelines; each hierarchy level must retrain and reconcile separately.
+### 2.2 The caveats (from `SPECS.md` §6, checked against MMF at the course pin)
 
-## 3. Proposed content (section-by-section outline)
+| | Caveat | At the pin (`322ef91`) |
+|-|--------|------------------------|
+| C1 | Local models aren't registered; they're pickled into Delta | Local scoring writes a `model_pickle` column; global scoring writes `model_pickle = b""` and a `model_uri` (`Forecaster.score_local_model` / `score_global_model`) |
+| C2 | Pickles are tied to library versions | Pin and record versions (course: `setup/VERSIONS.md`) |
+| C3 | MLflow runs and metrics explode at scale | Use the Delta evaluation table for per-series analysis |
+| C4 | Serving depends on the family | Global / foundation: UC model + `model_uri`; local: batch only |
+| C5 | Retraining, drift detection and monitoring are not built in | This lesson |
+| C6 | Compute gotchas (Arrow, adaptive execution, shuffle partitions; reconciliation needs classic compute) | The course runs MMF on serverless (3.2, 3.4 tested) |
+| C7 | Strict data contract | See 3.4 (regressors), 2.4 (cold start) |
+| C8 | Match the model family to the data | See 4.1, 6.1 |
 
-### 3.1 M05 · 5.1 Lab — Scheduled Retraining and Model Promotion
+The deck's field evidence names customers and is marked "anonymize"; **no customer names in the course**.
 
-#### Overview & objectives (5 min, markdown)
-- Why retraining matters: models degrade as data drifts; forecast accuracy decays over time.
-- The retrain-monitor-promote cycle in production: from daily/weekly retraining to controlled promotion.
+### 2.3 MMF facts the lab relies on (verified at the pin)
 
-#### A. Prepare a retraining notebook (10 min, live demo + learner code)
-- Given a trained model from M04 and reference data in `mmf.m5`, prepare a notebook that:
-  - Re-runs the forecast with the same hyperparameters and horizon (copy from M04 or use a parameter widget).
-  - Logs the run to MLflow and extracts the accuracy metrics.
-  - Writes results to `{schema}.{use_case}_retraining_log` (a Delta table tracking all retraining runs).
-- Classroom setup copies `m5_reference` results so learners can skip M03–M04 and focus on the job/governance layer.
+- Global models are registered as `{model_output}.{model}_{use_case_name}` (lower-cased by UC, e.g. `mlforecastlgbm_m5_exog` in the 3.4 test); each `run_forecast` with the same `use_case_name` adds a **version** (`Forecaster.evaluate_global_model`: the model fitted on the full history is registered; scoring loads it by `model_uri`). **MMF sets no alias.**
+- Aliases: `MlflowClient().set_registered_model_alias(name, "champion", version)`; read with `get_model_version_by_alias`. Unity Catalog has no stages.
+- Scoring output: `ds` and `y` arrays per series, plus `run_id`, `use_case`, `model`, `model_uri`.
 
-#### B. Create and monitor a Databricks Job (15 min, live walk-through)
-- Walk learners through the Databricks Jobs UI:
-  - Create a multi-task job: Task 1 = run forecast (invoke the notebook from A); Task 2 = evaluate drift (SQL cell comparing new accuracy to a baseline); Task 3 = conditional notify (e.g. Slack message if sMAPE > 15%).
-  - Set a schedule: daily or weekly (learner chooses).
-  - Configure compute: serverless or a shared all-purpose cluster (note cost/time trade-offs).
-  - Show MLflow integration: results are logged automatically under the job's run.
-- **Hands-on:** Learners create their own job (not submit it, just confirm the UI state in a screenshot).
+## 3. Proposed content
 
-#### C. Register models in Unity Catalog and manage aliases (10 min, lab code)
-- MMF has already registered the trained model during `run_forecast`. Inspect the registered model:
-  ```python
-  from mlflow.tracking import MlflowClient
-  client = MlflowClient()
-  # List versions of the registered model
-  versions = client.search_model_versions(filter_string=f"name='{catalog}.{schema}.LightGBMRegressor_m5'")
-  for v in versions:
-    print(f"Version {v.version}: {v.status}")
-  ```
-- Create an alias (e.g., "champion") pointing to the current best version:
-  ```python
-  client.set_model_alias(
-      name=f"{catalog}.{schema}.LightGBMRegressor_m5",
-      alias="champion",
-      version=version_number
-  )
-  ```
-- Demonstrate alias promotion: when a new version is trained, update the "champion" alias to point to it (old consumers refresh to get the new model).
-- Query the UC Model to confirm versions and alias assignments.
+### 5.1 Lab — The MLOps Loop (≈ 45 min)
 
-#### D. Best practices checkpoint (5 min)
-- Collapsible ANSWER block: `<details><summary>How would you automate promotion?</summary>...</details>`
-  - Manual approval via Slack button (Future: Databricks Apps with a custom UI).
-  - Metric-gated promotion: only promote if `sMAPE < threshold` on the holdout set.
-  - Use a Databricks Workflow webhook or an external CI/CD system.
+**A. Who owns what (5 min).** MMF vs the loop around it; caveats C1, C4, C5 (one line each).
 
-### 3.2 M05 · 5.2 Appendix — Forecast Accuracy Monitoring (optional, 30 min)
+**B. A shock (5 min).** Copy `daily_train_100` (+ `dept_id` from `m5_static_features`) to `{out}.sales_full`; apply the demand collapse to one department present in the sample (mmf-mlops' `drift.py` logic: `sales_full_base` snapshot, factor 0.3 from a shock date about two thirds through the last year). Plot the department's sales.
 
-#### Overview (2 min, markdown)
-- Monitoring vs. retraining: what to watch for in production and how to detect when a model is degrading.
-- The monitoring table: simple schema tracking daily/weekly forecast accuracy and data volumes.
+**C. The Champion (10 min).** `run_forecast` with `MLForecastLGBM`, trained up to a pre-shock cutoff, `prediction_length` long enough to cross the shock, `model_output={out}`, `use_case_name="m5_mlops"` → version 1. Set alias `champion` → 1.
 
-#### A. Build a monitoring table (10 min, SQL + Python)
-- Query `evaluation_output` and `scoring_output`, compute rolling weekly averages of sMAPE by `unique_id` and `use_case`.
-- Store the aggregates in `{schema}.{use_case}_monitoring_log` with columns: `compute_date`, `window_end_date`, `n_series`, `median_smape`, `pct_series_above_threshold` (e.g., % with sMAPE > 20%).
-- Learners write the SQL; instructor provides the template.
+**D. Drift (5 min).** Compare the Champion's forecast with the actuals after the shock, on the shocked department vs the rest: WAPE and **bias** climb on that department only. Positive bias = over-forecasting = stock nobody buys.
 
-#### B. Detect drift and visualize trends (10 min, Python + matplotlib chart)
-- Plot time series of `median_smape` and alert on sustained increases (e.g., 10%-point jump in 2 weeks).
-- Collapsible ANSWER block with a matplotlib figure (static, displayed via Databricks notebook output) and a simple rule: "If rolling 7-day median sMAPE > 1.2 × baseline, flag a retraining.".
-- Discuss false positives: seasonal spikes, data quality issues, vs. true model drift.
+**E. Challenger and promotion (10 min).** Retrain with a post-shock cutoff (same `use_case_name` → version 2), compare both on the overlap window for the shocked department (mmf-mlops' `promotion.py` query), and move the alias if the Challenger wins. Read it back with `get_model_version_by_alias`.
 
-#### C. (Optional) Lakehouse Monitoring integration preview (5 min, concept)
-- Show a screenshot of Databricks Lakehouse Monitoring on the evaluation output table.
-- Link to the [official docs](https://docs.databricks.com/en/lakehouse-monitoring/monitor-data.html); learners can enable it in their own workspace after the course.
+**F. Make it a job (10 min).** Create the retraining job — notebook task, serverless, paused schedule — with the Databricks SDK from the notebook (or ask Genie Code, as in 3.3). Run it once; check the run and the new model version.
 
-#### D. Troubleshooting checkpoint (3 min)
-- Q: "My forecast accuracy jumped. Is the model broken?" → Check (1) input data quality (same schema? NULLs?), (2) recent retraining (is a new model in Production?), (3) seasonal spike or external event.
+### 5.2 Appendix — Monitoring Forecast Accuracy (≈ 30 min)
 
-## 4. Interactive / visual component (if any)
+**A. Accuracy over time from one backtest.** Run (or reuse) an MMF backtest with `stride=7` over the period; explode `evaluation_output` into `{out}.forecast_vs_actual` (`maturation.py`), aggregate weekly WAPE / bias by department and horizon bucket (`metrics.py`). WAPE and bias, not MAPE (zero days — 4.2).
 
-**M05 · 5.1:**
-- No interactive components; learner interacts with the Jobs UI and MLflow.
+**B. The alert.** The breach query (`alert.sql`): latest week, 1-week horizon, enough rows, WAPE above a threshold. Show where a Databricks SQL alert would run it and what it would trigger (the job from 5.1 F).
 
-**M05 · 5.2:**
-- Matplotlib chart (static, in a notebook cell output): weekly sMAPE time series with a reference band (baseline ± 10%).
-- No interactive widget for M05 · 5.2 (out of scope). A self-contained HTML widget for configurable alert thresholds (similar to 3.1 / 4.2) could be added in a future iteration.
+**C. Lakehouse Monitoring (optional).** The inference-log monitor (`monitoring.py`) on `forecast_vs_actual`, if available in the workspace; otherwise a matplotlib chart of the `metrics` table.
+
+**D. Beyond the course.** Asset Bundles with dev / prod targets and CI/CD (GitHub Actions) — shown from mmf-mlops, not hands-on (needs the CLI and a Git provider).
+
+## 4. Interactive / visual component
+
+None new: matplotlib charts (department sales with the shock; WAPE / bias before and after; Champion vs Challenger). The Typst MLOps deck in mmf-mlops can supply slides for the instructor.
 
 ## 5. Data, setup and runtime
 
-**Data inputs:**
-- `mmf.m5.daily_train_100` or `daily_train_1000` (same training data as M03–M04).
-- `mmf.m5_reference.evaluation_output` (pre-computed reference results for learners who skip M03–M04).
-
-**Outputs:**
-- `{user_schema}.m5_retraining_log` (audit table: one row per job run, with run_id, timestamp, sMAPE, version).
-- `{user_schema}.m5_monitoring_log` (optional, M05 · 5.2: rolling accuracy aggregates).
-- UC Model Registry entries (e.g. `{catalog}.{schema}.m5_forecast` versions 1, 2, …).
-
-**Runtime:**
-- Forecast retraining (M05 · 5.1 A): 10–15 min on 100 series (same as M03 fast model set).
-- Job setup and registration: 5 min.
-- Monitoring setup (M05 · 5.2): 5 min (no Spark jobs; SQL queries on cached results).
-
-**Compute:**
-- Serverless SQL warehouse for SQL cells (M05 · 5.2 monitoring queries).
-- Serverless notebook compute for the forecast notebook (M05 · 5.1 A).
-- Single-machine CPU for model registration (MLflow client).
+- **Inputs:** `mmf.m5.daily_train_100`, `mmf.m5.m5_static_features`.
+- **Outputs (learner schema):** `sales_full`, `sales_full_base`, MMF evaluation / scoring tables for the champion and challenger runs, registered model `{out}.mlforecastlgbm_m5_mlops` (versions 1, 2; alias `champion`), and in 5.2 `forecast_vs_actual`, `metrics`.
+- **Setup:** none beyond the course's (`Classroom-Setup-5.1` → `ensure_schema()`).
+- **Runtime:** to be measured. Reference point: one `MLForecastLGBM` run on 100 series took about 2 minutes in the 3.4 test.
+- **Versions:** the course pin (`322ef91`, `requirements-cpu.txt`), not mmf-mlops' `mmf_sa @ main` / `databricks-sdk==0.40.0`.
 
 ## 6. Files to create / change
 
-**Notebooks:**
-- `labs/Source/en_us/notebooks/M05 - Running MMF in Production/5.1 Lab - Scheduled Retraining and Model Promotion.py`
-- `labs/Source/en_us/notebooks/M05 - Running MMF in Production/5.2 Appendix - Monitoring Forecast Accuracy.py`
-- `labs/Source/en_us/notebooks/Includes/Classroom-Setup-5.1.py` (copies M04 reference results to learner schema)
-- `labs/Source/en_us/notebooks/Includes/Classroom-Setup-5.2.py` (copies retraining log)
+| File | Action |
+|------|--------|
+| `labs/Source/en_us/notebooks/M05 - Running MMF in Production/5.1 Lab - The MLOps Loop.py` | Create — adapted from `drift.py`, `champion.py`, `promotion.py` |
+| `labs/Source/en_us/notebooks/M05 - Running MMF in Production/5.2 Appendix - Monitoring Forecast Accuracy.py` | Create — adapted from `maturation.py`, `metrics.py`, `alert.sql`, `monitoring.py` |
+| `labs/Source/en_us/notebooks/Includes/Classroom-Setup-5.1.py`, `-5.2.py` | Create |
+| `AGENDA.py`, learner README, `SPECS/RESTRUCTURE.md` | Change — add M05 |
 
-**Supporting modules:**
-- `labs/Source/en_us/notebooks/Includes/_mlops_helpers.py` (optional: helper functions for model registration, alias management, monitoring SQL templates)
+## 7. Test plan
 
-**Upstream reference (informational):**
-- Companion repo [lbruand-db/mmf-mlops](https://github.com/lbruand-db/mmf-mlops) (demos, deck, spec) — link in M05 overview but do not copy code (copyright).
+1. On e2-demo: 5.1 end to end on 100 series — shock applied; Champion v1 and Challenger v2 registered; WAPE / bias climb on the shocked department only; alias moves; the job runs once. Record runtimes.
+2. Pick the shocked department from those present in `daily_train_100` and enough series (the sample has 26 HOBBIES, 20 HOUSEHOLD, 54 FOODS series across departments — check counts per `dept_id`).
+3. 5.2: `forecast_vs_actual` row count = series × windows × 28; the alert query returns rows after the shock and none before.
+4. Vocareum: model registration and alias in the learner schema; job creation as a learner; SQL warehouse for the alert; whether Lakehouse Monitoring is available.
 
-## 7. Test plan (e2-demo and/or Vocareum)
+## 8. Decisions for the reviewer
 
-**e2-demo (instructor-only):**
-1. Run M04 forecast (or import reference results).
-2. Run M05 · 5.1 retraining notebook: confirm new models are trained and logged in MLflow.
-3. Create a Job in the UI: task 1 = notebook, task 2 = SQL accuracy check. Trigger it manually. Confirm results in `retraining_log`.
-4. Register a model in UC, create/update aliases (`champion`, `challenger`). Verify via `mlflow.tracking.MlflowClient().get_model_version_by_alias(…)`.
-5. Run M05 · 5.2 monitoring: confirm rolling accuracy aggregates are computed.
-
-**Vocareum (learner-paced, G2):**
-1. Enter M05 · 5.1 cold (Classroom-Setup-5.1 copies results from `m5_reference`).
-2. Complete A (retraining notebook) and B (Job setup in UI — screenshot task only).
-3. Complete C (model registration in UC).
-4. (Optional) Skip M05 · 5.2 or include it as a bonus.
-
-**Timing validation:**
-- Full M05 (5.1 + 5.2): 75 min.
-- Standalone M05 · 5.1: 45 min (sufficient for G1 add-on if time allows).
-
-## 8. Decisions for the reviewer (numbered, with a recommended option)
-
-| # | Decision | Options | **Recommended** | Rationale |
-|---|----------|---------|-----------------|-----------|
-| **D1** | Scope of model persistence | (a) Only demonstrate model registration in UC; don't extract pickles from `evaluation_output`. (b) Teach learners to extract and deserialize model pickles from the evaluation table and use them for batch scoring. | **(a)** | Extraction is low-level; MMF's native path is to retrain. (b) adds 15 min and obscures the bigger MLOps story. Can link to advanced tutorials. |
-| **D2** | Job creation: live UI or notebook API | (a) Walk through the Jobs UI, learners take screenshot. (b) Use the Databricks Python SDK to create a job programmatically in a notebook. | **(a)** | UI is discoverable and visible; API requires SDK familiarity. (b) is valuable for advanced users; offer as optional deepdive. |
-| **D3** | Monitoring: simple SQL or Lakehouse Monitoring | (a) Write custom SQL to compute rolling accuracy; optional reference to Lakehouse Monitoring. (b) Require learners to enable Lakehouse Monitoring on the evaluation table. | **(a)** | SQL is transparent and works on any Databricks workspace. Lakehouse Monitoring is a premium feature and adds operational complexity. (a) + optional reference is best. |
-| **D4** | Multi-task job with conditional branching | (a) Show a simple linear job: forecast → register model. (b) Build a complex job with conditional tasks (e.g., only promote if sMAPE < 15%). | **(a)** | Linear is clearer. (b) is valuable but requires careful design; defer to G3 / advanced track. |
-| **D5** | Include retraining on fresh data vs. same training window | (a) Retrain on the same historical window (deterministic, easier to compare). (b) Simulate forward time: train on Jan–Mar, score on Apr, then retrain on Jan–Apr and score on May. | **(a)** | (a) focuses on the governance and scheduling pattern. (b) is realistic but adds complexity and confusion (what baseline?). Mention as future extension. |
-| **D6** | Monitoring: learner-created dashboard or static chart | (a) Provide a static matplotlib chart in a notebook cell (learners see example). (b) Have learners build their own Databricks Dashboard or Lakeview dashboard. | **(a)** | Dashboards are out of scope for this workshop. Static matplotlib chart + guidance is sufficient. Dashboards are valuable but 30 min is tight. |
+1. **Reuse mmf-mlops code in the course:** (a) **port the needed notebooks into the course** (recommended — same author, so no licence issue; the repo is private, so learners couldn't follow a link); (b) make mmf-mlops public and link to it.
+2. **Simulated time:** the Champion/Challenger arc on one shock (recommended — what mmf-mlops settled on) vs the `AS_OF` tick loop (too slow; mmf-mlops dropped it).
+3. **Job creation:** SDK from the notebook (recommended — reproducible, works on Vocareum if learners may create jobs) vs Genie Code (fits the course theme; less predictable) vs the Jobs UI (screenshots).
+4. **Monitoring in 5.2:** SQL `metrics` table + chart (recommended baseline) with Lakehouse Monitoring as an optional step, depending on test 4.
+5. **CI/CD:** instructor demo from mmf-mlops (recommended) — not hands-on.
+6. **Deck:** reuse slides from the mmf-mlops Typst deck for an M05 section of the workshop deck (`SPEC_PRESENTATION_TYPST`) — recommended.
 
 ## 9. Risks and out of scope
 
-**Risks:**
+| Risk | Mitigation |
+|------|------------|
+| Learners may not create jobs or monitors on Vocareum | Test 4; fall back to a run-once notebook and a chart |
+| Shocked department too small in the 100-series sample | Test 2; use `daily_train_1000` if needed |
+| Champion doesn't visibly drift | The shock is a knob (date, factor); tune it in the dry run |
+| mmf-mlops evolves | Port at a recorded commit |
 
-1. **UC Model Registry maturity on Vocareum:** If the managed catalog / metastore setup on Vocareum doesn't allow model registration, M05 · 5.1 C (registration) fails. **Mitigation:** Test model registration (MLflow Python API) on the Vocareum test workspace early. If it fails, adjust to a Workspace Model Registry fallback (less durable but works).
-
-2. **Job scheduling permissions:** Vocareum / learner environments may not allow job creation (admin-only). If so, M05 · 5.1 B becomes a demo-only walkthrough, not a hands-on lab. **Mitigation:** Confirm learner role grants `CAN_ATTACH_TO_CLUSTERS` and `CAN_MANAGE_RUN` in Vocareum setup scripts.
-
-3. **MLflow experiment scope:** M05 · 5.1 A logs to `/Users/{email}/mmf_m5_workshop` (shared with M03–M04). If learners race and collide on MLflow runs, results are confusing. **Mitigation:** Use per-user experiment paths by default.
-
-4. **Scheduling granularity:** Databricks Jobs support cron schedules, but the UI is cumbersome. Manual job triggers are easier for learners; a screenshot-based exercise is realistic.
-
-**Out of scope:**
-
-- **Foundation models in production:** GPU scheduling and licensing complexity; learners should use pre-computed results.
-- **A/B testing frameworks:** Beyond the scope of a 2-hour workshop; mention as future extension.
-- **Hierarchical reconciliation + retraining:** Skill 6 reconciliation is optional; integrating it with retraining (e.g., retrain each level, then reconcile) is a G3 advanced topic.
-- **Fine-grained access control:** UC grants are mentioned but not deeply explored. Link to docs.
-- **Cost optimization:** Tracking job costs via `system.billing.usage` is valuable but adds SQL complexity. Optional deepdive.
-- **Automated promotion gating:** Metric-based stage transitions require external CI/CD or serverless functions; out of scope for this workshop.
+Out of scope: real-time serving; the `AS_OF` live-dashboard cron; rrweb / rehearseur recording; foundation models in the loop (GPU); A/B testing; cost tracking (SPEC_SCALING).
 
 ## 10. References
 
-- **Databricks MLflow Model Registry:** https://docs.databricks.com/en/mlflow/model-registry/index.html
-- **Databricks Jobs API & scheduling:** https://docs.databricks.com/en/workflows/jobs/index.html
-- **Unity Catalog models:** https://docs.databricks.com/en/model-registry/index.html
-- **Lakehouse Monitoring:** https://docs.databricks.com/en/lakehouse-monitoring/monitor-data.html
-- **MMF Skills:** `/tmp/mmf_upstream/many-model-forecasting-main/skills/` (Skill 1–6 in repo; Skill 5 handles post-processing)
-- **Companion repo (mmf-mlops):** https://github.com/lbruand-db/mmf-mlops (demo, deck, SPEC — referenced but not copied)
-- **System tables (billing, access):** https://docs.databricks.com/en/admin/system-tables/index.html
+- https://github.com/lbruand-db/mmf-mlops — `SPEC/SPECS.md` (§6 caveats C1–C8, §7 reference architecture), `SPEC/SPECS_HANDSON.md` (§3 arrow of time, revised decision), `SPEC/DEMO_SCENARIO.md`, `demo/README.md`, `demo/resources/jobs.yml`, `demo/src/*`
+- `databricks-solutions/mlops-quickstart` (layout followed by mmf-mlops)
+- MMF at the pin: `mmf_sa/Forecaster.py` (`evaluate_global_model`, `score_global_model`, `score_local_model`)
+- Unity Catalog model aliases: https://docs.databricks.com/aws/en/machine-learning/manage-model-lifecycle/
+- Lakehouse Monitoring: https://docs.databricks.com/aws/en/lakehouse-monitoring/
+- Databricks SQL alerts: https://docs.databricks.com/aws/en/sql/user/alerts/
+- Course: 3.4 Appendix (registered model naming), 4.2 Appendix (metrics), `SPEC_DEBUGGING.md` (5.3), `SPEC_SCALING.md` (5.4)

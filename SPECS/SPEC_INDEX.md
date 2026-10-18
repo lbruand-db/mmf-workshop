@@ -18,7 +18,7 @@ Existing lessons are unchanged; numbers already reserved in `RESTRUCTURE.md` (1.
 | 4.4 Appendix — Combining Forecasts vs Picking a Winner | [SPEC_THEORY_COMBINATION](SPEC_THEORY_COMBINATION.md) | Appendix + widget | none / Serverless |
 | 4.5 Appendix — Hierarchical Reconciliation (Skill 6) | [SPEC_HIERARCHICAL_RECONCILIATION](SPEC_HIERARCHICAL_RECONCILIATION.md) | Appendix | Single Node classic cluster |
 | **M05 — Running MMF in Production** (new module) | | | |
-| 5.1 Lab — Scheduled Retraining and Model Promotion | [SPEC_MLOPS](SPEC_MLOPS.md) | Lab | Serverless (Jobs) |
+| 5.1 Lab — The MLOps Loop: Drift, Retraining and Promotion | [SPEC_MLOPS](SPEC_MLOPS.md) | Lab | Serverless (Jobs) |
 | 5.2 Appendix — Monitoring Forecast Accuracy | [SPEC_MLOPS](SPEC_MLOPS.md) | Appendix | Serverless |
 | 5.3 Appendix — Debugging MMF and the Results Explorer | [SPEC_DEBUGGING](SPEC_DEBUGGING.md) | Appendix | Serverless + Databricks App |
 | 5.4 Appendix — Scaling to Thousands of Series | [SPEC_SCALING](SPEC_SCALING.md) | Appendix + calculator widget | Serverless |
