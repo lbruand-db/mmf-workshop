@@ -13,10 +13,15 @@ Participants use **Genie Code** (Databricks' AI coding agent) with the **MMF ski
 - **Global ML:** LightGBM (MLForecast)
 - **Foundation:** Chronos-Bolt-Small (pre-computed reference results)
 
+![The course AGENDA notebook open in a Vocareum-provisioned Databricks workspace](assets/screenshot.png)
+
+*The course landing notebook (`AGENDA`) in a Vocareum-provisioned workspace, with links to each module and lesson.*
+
 ## Repository structure
 
 ```
 ├── README.md
+├── assets/                   # Images used in this README
 ├── SPECS/
 │   ├── SPEC.md              # Workshop specification
 │   ├── VOCAREUM.md           # Vocareum environment research
