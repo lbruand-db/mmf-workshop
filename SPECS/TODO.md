@@ -8,8 +8,14 @@
  - [ ] Let's add a lesson on MLOps
  - [ ] Let's add a lesson on debugging (include something on the https://github.com/databricks-industry-solutions/many-model-forecasting/tree/main/apps MMF results explorer )
  - [ ] Let's add a pdf typst presentation
+ - [ ] Finetuning / pretraining TimeSeriesFoundationModels (TSFM)
  - [ ] Cold start and short histories: which series MMF's data-quality checks drop (too short, too many gaps) and the fallbacks (category-level forecast, global or foundation models)
  - [ ] Segment series before choosing models: smooth / erratic / intermittent / lumpy (ADI / CV²), route each segment to suitable models — ties into the planned 2.3 Lab (Skill 2) and 4.2
  - [ ] Scaling up 100 → 1,000 → 30,000 series: runtime and cost per series on serverless (`daily_train_1000` is loaded), shuffle partitions, `backtest_length` / `stride`, which models to drop
  - [ ] Foundation models in depth: zero-shot Chronos / TimesFM / Moirai vs statistical and ML models — where they win (short or noisy series); needs GPU, so instructor-led, with the precomputed Chronos-Bolt results as the CPU fallback
  - [ ] Choosing the forecast granularity: daily vs weekly vs monthly, item vs item × store — temporal aggregation for intermittent series (MMF ships weekly / monthly configs); possibly an interactive widget like 3.1 / 4.2
+ - [ ] Theory: point forecasts vs forecast distributions — prediction intervals, quantile (pinball) loss, the newsvendor / service-level trade-off; follows 4.2's bias row (good widget candidate)
+ - [ ] Theory: decomposition and stationarity — trend / seasonality / remainder, why ETS, ARIMA and Theta behave as they do, why MMF's LightGBM uses `differences_1` (lecture, e.g. 2.1)
+ - [ ] Theory: local vs global models — cross-learning across series, what global and foundation (zero-shot) models gain and lose; the theory behind 4.1's model-class comparison (lecture, e.g. 1.1)
+ - [ ] Theory: multi-step strategies — recursive vs direct forecasting, error growth over the 28-day horizon (MMF's LightGBM is recursive) (good widget candidate)
+ - [ ] Theory: combining forecasts vs picking a winner — the M-competitions' finding that combinations beat per-series selection; selection on 2 windows overfits (3.1); a simple ensemble as an extension of 4.1 (good widget candidate)
