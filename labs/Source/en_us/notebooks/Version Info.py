@@ -8,7 +8,13 @@
 # MAGIC
 # MAGIC * Name: **{{course_name}}**
 # MAGIC * Version: **{{version_number}}**
+# MAGIC * Build: **{{build_id}}**
+# MAGIC * Source commit: [{{commit}}]({{commit_url}})
 # MAGIC * Built on: **{{built_on}}**
+# MAGIC
+# MAGIC {{dirty_note}}
+# MAGIC
+# MAGIC Quote the **Build** when you report a problem with the course.
 
 # COMMAND ----------
 

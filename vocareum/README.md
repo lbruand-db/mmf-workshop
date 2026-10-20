@@ -16,6 +16,18 @@ This writes to `dist/`:
 |---------|----------|------------|
 | `mmf-workshop-labs.zip` | `labs/Source/en_us/notebooks/` — the learner course | Lab Content |
 | `mmf-workshop-setup.zip` | `setup/` + the course notebooks — admin setup | Workspace setup notebook |
+| `BUILD_INFO.json` | Build identity (not uploaded) | — |
+
+### Which build is deployed?
+
+Every build is identified as **`<version>+g<short commit>`** (from `pyproject.toml` and git), with `.dirty` appended if `setup/`, `labs/`, `src/` or `pyproject.toml` had uncommitted changes. The build:
+
+- writes it, with the full commit, its GitHub link and the UTC build time, into the **`Version Info`** notebook of the course;
+- prints `Course build: …` at the top of every lesson's Classroom setup output (so it shows in learners' screenshots and bug reports);
+- stamps it into `setup/workspace_setup`, which appends a row to **`mmf.m5.course_build`** on every run: `SELECT * FROM mmf.m5.course_build ORDER BY setup_ran_at DESC`;
+- writes `dist/BUILD_INFO.json`, and warns if the build is dirty or the commit isn't pushed.
+
+Before uploading: commit and push, then build — the warning-free output means the zips match a commit on GitHub. Note the build id in `SPECS/NOTES.md` with the deployment.
 
 ## 2. Create the course
 

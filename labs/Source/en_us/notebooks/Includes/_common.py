@@ -79,6 +79,11 @@ source = f"{catalog}.{source_schema}"
 reference = f"{catalog}.{source_schema}_reference"
 out = f"{user_catalog}.{user_schema}"
 
+# Filled in by the course build (`uv run mmf-workshop build`); see Version Info.
+COURSE_BUILD = "{{build_id}}"
+
+if not COURSE_BUILD.startswith("{{"):
+    print(f"Course build: {COURSE_BUILD}")
 print(f"Shared data (read): {source}")
 print(f"Your outputs (write): {out}  [{resolved_by}]")
 

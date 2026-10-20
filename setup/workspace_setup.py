@@ -17,6 +17,7 @@
 # MAGIC    `{catalog}.{schema}_reference`, so lessons can copy results instead of
 # MAGIC    re-running the forecast — skipped if already present
 # MAGIC 5. Grants learners read-only access to the shared data and reference results
+# MAGIC 6. Records which course build ran, in `{catalog}.{schema}.course_build`
 # MAGIC
 # MAGIC Safe to re-run.
 
@@ -201,5 +202,30 @@ for g in grants:
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Record the course build
+# MAGIC
+# MAGIC One row per run, so `SELECT * FROM {catalog}.{schema}.course_build ORDER BY setup_ran_at DESC`
+# MAGIC tells which version of the repository this workspace was set up with. The values are filled in
+# MAGIC by `uv run mmf-workshop build` (see `Version Info`).
+
+# COMMAND ----------
+
+COURSE_BUILD = "{{build_id}}"
+COURSE_COMMIT = "{{commit}}"
+COURSE_BUILT_ON = "{{built_on}}"
+
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {source}.course_build (
+        build_id STRING, commit STRING, built_on STRING, mmf_ref STRING, setup_ran_at TIMESTAMP)
+""")
+spark.sql(
+    f"INSERT INTO {source}.course_build SELECT :build_id, :commit, :built_on, :mmf_ref, current_timestamp()",
+    args={"build_id": COURSE_BUILD, "commit": COURSE_COMMIT, "built_on": COURSE_BUILT_ON, "mmf_ref": mmf_ref},
+)
+print(f"Course build {COURSE_BUILD} (commit {COURSE_COMMIT}, built {COURSE_BUILT_ON}) recorded in {source}.course_build")
+
+# COMMAND ----------
+
 import json
-dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "source": source, "reference": reference, "mmf_ref": mmf_ref, "skill_files": len(staged)}))
+dbutils.notebook.exit(json.dumps({"status": "SUCCESS", "build_id": COURSE_BUILD, "commit": COURSE_COMMIT, "source": source, "reference": reference, "mmf_ref": mmf_ref, "skill_files": len(staged)}))

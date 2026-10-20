@@ -114,7 +114,7 @@ Run once per learner, with `username` set to their email (comma-separated for se
 See [`vocareum/README.md`](vocareum/README.md) for the Vocareum course settings, uploads and test plan.
 
 
-`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.zip` (learner content) and `mmf-workshop-setup.zip` (admin setup, plus the course notebooks so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks.
+`uv run mmf-workshop build` writes two archives to `dist/`: `mmf-workshop-labs.zip` (learner content) and `mmf-workshop-setup.zip` (admin setup, plus the course notebooks so `workspace_setup` can run the reference solution). Learners never receive the setup notebooks. Each build is stamped with a build id (`<version>+g<commit>[.dirty]`) shown in `Version Info`, printed by every Classroom setup, and recorded by `workspace_setup` in `mmf.m5.course_build` — see [vocareum/README.md](vocareum/README.md#which-build-is-deployed).
 
 ## Running the lessons
 

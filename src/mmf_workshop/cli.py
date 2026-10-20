@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
+from functools import cache
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -30,6 +33,9 @@ ARCHIVES = {
 
 
 COURSE_NAME = "Many-Model Forecasting with Genie Code"
+REPO_URL = "https://github.com/lbruand-db/mmf-workshop"
+# Changes here make a build "dirty": the packaged content no longer matches the commit.
+PACKAGED_PATHS = ["setup", "labs", "src", "pyproject.toml"]
 
 
 def project_version() -> str:
@@ -37,16 +43,54 @@ def project_version() -> str:
     return match.group(1) if match else "unknown"
 
 
+def _git(*args: str) -> str | None:
+    result = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+@cache
+def build_info() -> dict:
+    """Identifies a build: project version + git commit, so a deployed course can be
+    traced back to its source. `build_id` is `<version>+g<short commit>[.dirty]`."""
+    version = project_version()
+    commit = _git("rev-parse", "HEAD") or "unknown"
+    dirty = bool(_git("status", "--porcelain", "--", *PACKAGED_PATHS))
+    pushed = bool(_git("branch", "-r", "--contains", "HEAD")) if commit != "unknown" else False
+    short = commit[:7]
+    return {
+        "course_name": COURSE_NAME,
+        "version": version,
+        "build_id": f"{version}+g{short}" + (".dirty" if dirty else ""),
+        "commit": commit,
+        "commit_url": f"{REPO_URL}/commit/{commit}",
+        "branch": _git("rev-parse", "--abbrev-ref", "HEAD") or "unknown",
+        "dirty": dirty,
+        "pushed": pushed,
+        "built_on": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+    }
+
+
 def render(nb: Path) -> str:
-    """Notebook source as packaged: fills the {{...}} placeholders in Version Info."""
+    """Notebook source as packaged: fills the {{...}} build placeholders
+    (Version Info, Includes/_common, setup/workspace_setup)."""
     text = nb.read_text()
-    if nb.name == "Version Info.py":
-        for key, value in {
-            "course_name": COURSE_NAME,
-            "version_number": project_version(),
-            "built_on": datetime.date.today().isoformat(),
-        }.items():
-            text = text.replace("{{" + key + "}}", value)
+    if "{{" not in text:
+        return text
+    info = build_info()
+    values = {
+        "course_name": info["course_name"],
+        "version_number": info["version"],
+        "build_id": info["build_id"],
+        "commit": info["commit"],
+        "commit_url": info["commit_url"],
+        "built_on": info["built_on"],
+        "dirty_note": (
+            "**Built from uncommitted changes** — this build does not match any commit exactly."
+            if info["dirty"] else "Built from a clean checkout of the commit above."
+        ),
+    }
+    for key, value in values.items():
+        text = text.replace("{{" + key + "}}", value)
     return text
 
 
@@ -89,10 +133,19 @@ def cmd_build(args: argparse.Namespace) -> int:
     if rc:
         return rc
     DIST_DIR.mkdir(parents=True, exist_ok=True)
+    info = build_info()
     for name, (dirs, root) in ARCHIVES.items():
         rc = build_archive(dirs, root, DIST_DIR / name)
         if rc:
             return rc
+    (DIST_DIR / "BUILD_INFO.json").write_text(json.dumps(
+        {**info, "archives": sorted(ARCHIVES)}, indent=2) + "\n")
+    print(f"Build {info['build_id']} (commit {info['commit']}) -> {DIST_DIR / 'BUILD_INFO.json'}")
+    if info["dirty"]:
+        print("WARNING: uncommitted changes in " + ", ".join(PACKAGED_PATHS)
+              + " — commit them before deploying, so the build can be traced.", file=sys.stderr)
+    elif not info["pushed"]:
+        print("WARNING: commit not pushed — push it, so the commit link in Version Info resolves.", file=sys.stderr)
     return 0
 
 
@@ -133,14 +186,17 @@ def build_archive(dirs: list[str], root: Path, dbc_path: Path) -> int:
 def cmd_install(args: argparse.Namespace) -> int:
     target = f"/Users/{args.email}/mmf-workshop"
 
-    print(f"Importing notebooks -> {target}")
+    print(f"Importing notebooks -> {target} (build {build_info()['build_id']})")
+    tmp = Path(tempfile.mkdtemp())
     for nb in find_notebooks():
         rel = nb.relative_to(REPO_ROOT)
         ws_path = f"{target}/{rel}".removesuffix(".py")
+        rendered = tmp / nb.name
+        rendered.write_text(render(nb))
         cmd = [
             "databricks", "workspace", "import",
             ws_path,
-            "--file", str(nb),
+            "--file", str(rendered),
             "--format", "SOURCE",
             "--language", "PYTHON",
             "--overwrite",
